@@ -31,20 +31,40 @@ jobs:
           unzip -q Godot_v4.2.2-stable_export_templates.tpz
           mv templates/* ~/.local/share/godot/export_templates/4.2.2.stable/
 
-      - name: 4. 自动配置 Android SDK、签名密钥与导出预设
+      - name: 4. 生成签名与标准安卓导出配置（零手动tres文件）
         run: |
-          rm -f debug.keystore
+          # 1) 启动 adb 服务，防止 tcp:5037 Connection refused 报错
+          $ANDROID_HOME/platform-tools/adb start-server || true
+
+          # 2) 确保 project.godot 包含安卓必需的 ETC2/ASTC 纹理选项
+          if ! grep -q "import_etc2_astc" project.godot; then
+            printf '\n[rendering]\ntextures/vram_compression/import_etc2_astc=true\n' >> project.godot
+          fi
+
+          # 3) 生成调试签名文件 debug.keystore
+          rm -f "$PWD/debug.keystore"
           keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore "$PWD/debug.keystore" -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
 
-          mkdir -p ~/.config/godot
-          printf '[resource]\nexport/android/android_sdk_path="%s"\nexport/android/debug_keystore="%s/debug.keystore"\nexport/android/debug_keystore_user="androiddebugkey"\nexport/android/debug_keystore_pass="android"\n' "$ANDROID_HOME" "$PWD" > ~/.config/godot/editor_settings-4.tres
+          # 4) 让 Godot 自己首次启动并生成合法的默认配置与资源缓存
+          ./godot --headless --editor --quit || true
 
-          printf '[preset.0]\nname="Android"\nplatform="Android"\nrunnable=true\ndedicated_server=false\ncustom_features=""\nexport_filter="all_resources"\ninclude_filter=""\nexclude_filter=""\nexport_path="build/animal_island.apk"\nencryption_include_filters=""\nencryption_exclude_filters=""\nencrypt_pck=false\nencrypt_directory=false\n\n[preset.0.options]\ngradle_build/use_gradle_build=false\narchitectures/arm64-v8a=true\narchitectures/armeabi-v7a=true\npackage/unique_name="com.animalisland.sim"\npackage/name="AnimalIsland"\npackage/signed=true\nkeystore/debug="%s/debug.keystore"\nkeystore/debug_user="androiddebugkey"\nkeystore/debug_password="android"\nscreen/immersive_mode=true\n' "$PWD" > export_presets.cfg
+          # 5) 在 Godot 自己生成的合法配置文件末尾追加 Android SDK 路径
+          SETTINGS_FILE=$(find ~/.config/godot -name "editor_settings*.tres" | head -n 1)
+          if [ -n "$SETTINGS_FILE" ]; then
+            printf '\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$ANDROID_HOME" "$PWD" >> "$SETTINGS_FILE"
+          fi
+
+          # 6) 生成干净无缩进的 export_presets.cfg
+          printf '[preset.0]\nname="Android"\nplatform="Android"\nrunnable=true\ndedicated_server=false\ncustom_features=""\nexport_filter="all_resources"\ninclude_filter=""\nexclude_filter=""\nexport_path="build/animal_island.apk"\nencryption_include_filters=""\nencryption_exclude_filters=""\nencrypt_pck=false\nencrypt_directory=false\n\n[preset.0.options]\ngradle_build/use_gradle_build=false\narchitectures/arm64-v8a=true\narchitectures/armeabi-v7a=true\npackage/unique_name="com.animalisland.sim"\npackage/name="AnimalIsland"\npackage/signed=true\nkeystore/debug="%s/debug.keystore"\nkeystore/debug_user="androiddebugkey"\nkeystore/debug_password="android"\nversion/code=1\nversion/name="1.0"\nscreen/immersive_mode=true\n' "$PWD" > export_presets.cfg
 
       - name: 5. 一键打包生成 APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
-          ./godot --headless --export-debug "Android" build/animal_island.apk
+          ./godot --headless --verbose --export-debug "Android" build/animal_island.apk
           ls -lh build/animal_island.apk
 
       - name: 6. 上传 APK 供你直接下载
