@@ -13,7 +13,7 @@ jobs:
       - name: 1. 读取你的游戏代码
         uses: actions/checkout@v4
 
-      - name: 2. 安装 Java 17 与生成安卓签名证书
+      - name: 2. 安装 Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -31,47 +31,21 @@ jobs:
           unzip -q Godot_v4.2.2-stable_export_templates.tpz
           mv templates/* ~/.local/share/godot/export_templates/4.2.2.stable/
 
-      - name: 4. 自动生成安卓导出配置与签名密钥
+      - name: 4. 自动配置 Android SDK、签名密钥与导出预设
         run: |
-          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+          rm -f debug.keystore
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore "$PWD/debug.keystore" -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
 
-          cat << 'EOF' > export_presets.cfg
-          [preset.0]
-          name="Android"
-          platform="Android"
-          runnable=true
-          dedicated_server=false
-          custom_features=""
-          export_filter="all_resources"
-          include_filter=""
-          exclude_filter=""
-          export_path="build/animal_island.apk"
-          encryption_include_filters=""
-          encryption_exclude_filters=""
-          encrypt_pck=false
-          encrypt_directory=false
+          mkdir -p ~/.config/godot
+          printf '[resource]\nexport/android/android_sdk_path="%s"\nexport/android/debug_keystore="%s/debug.keystore"\nexport/android/debug_keystore_user="androiddebugkey"\nexport/android/debug_keystore_pass="android"\n' "$ANDROID_HOME" "$PWD" > ~/.config/godot/editor_settings-4.tres
 
-          [preset.0.options]
-          gradle_build/use_gradle_build=false
-          architectures/arm64-v8a=true
-          architectures/armeabi-v7a=true
-          package/unique_name="com.animalisland.sim"
-          package/name="像素动物岛物语"
-          package/signed=true
-          keystore/debug="debug.keystore"
-          keystore/debug_user="androiddebugkey"
-          keystore/debug_password="android"
-          screen/immersive_mode=true
-          screen/support_small=true
-          screen/support_normal=true
-          screen/support_large=true
-          screen/support_xlarge=true
-          EOF
+          printf '[preset.0]\nname="Android"\nplatform="Android"\nrunnable=true\ndedicated_server=false\ncustom_features=""\nexport_filter="all_resources"\ninclude_filter=""\nexclude_filter=""\nexport_path="build/animal_island.apk"\nencryption_include_filters=""\nencryption_exclude_filters=""\nencrypt_pck=false\nencrypt_directory=false\n\n[preset.0.options]\ngradle_build/use_gradle_build=false\narchitectures/arm64-v8a=true\narchitectures/armeabi-v7a=true\npackage/unique_name="com.animalisland.sim"\npackage/name="AnimalIsland"\npackage/signed=true\nkeystore/debug="%s/debug.keystore"\nkeystore/debug_user="androiddebugkey"\nkeystore/debug_password="android"\nscreen/immersive_mode=true\n' "$PWD" > export_presets.cfg
 
       - name: 5. 一键打包生成 APK
         run: |
           mkdir -p build
           ./godot --headless --export-debug "Android" build/animal_island.apk
+          ls -lh build/animal_island.apk
 
       - name: 6. 上传 APK 供你直接下载
         uses: actions/upload-artifact@v4
