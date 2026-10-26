@@ -1,0 +1,80 @@
+name: 自动生成安卓APK安装包
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: 编译打包 Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 读取你的游戏代码
+        uses: actions/checkout@v4
+
+      - name: 2. 安装 Java 17 与生成安卓签名证书
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 3. 下载 Godot 4.2.2 引擎与安卓打包模板
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.2.2-stable/Godot_v4.2.2-stable_linux.x86_64.zip
+          unzip -q Godot_v4.2.2-stable_linux.x86_64.zip
+          mv Godot_v4.2.2-stable_linux.x86_64 godot
+          chmod +x godot
+
+          mkdir -p ~/.local/share/godot/export_templates/4.2.2.stable
+          wget -q https://github.com/godotengine/godot/releases/download/4.2.2-stable/Godot_v4.2.2-stable_export_templates.tpz
+          unzip -q Godot_v4.2.2-stable_export_templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/4.2.2.stable/
+
+      - name: 4. 自动生成安卓导出配置与签名密钥
+        run: |
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+
+          cat << 'EOF' > export_presets.cfg
+          [preset.0]
+          name="Android"
+          platform="Android"
+          runnable=true
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter=""
+          export_path="build/animal_island.apk"
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          encrypt_pck=false
+          encrypt_directory=false
+
+          [preset.0.options]
+          gradle_build/use_gradle_build=false
+          architectures/arm64-v8a=true
+          architectures/armeabi-v7a=true
+          package/unique_name="com.animalisland.sim"
+          package/name="像素动物岛物语"
+          package/signed=true
+          keystore/debug="debug.keystore"
+          keystore/debug_user="androiddebugkey"
+          keystore/debug_password="android"
+          screen/immersive_mode=true
+          screen/support_small=true
+          screen/support_normal=true
+          screen/support_large=true
+          screen/support_xlarge=true
+          EOF
+
+      - name: 5. 一键打包生成 APK
+        run: |
+          mkdir -p build
+          ./godot --headless --export-debug "Android" build/animal_island.apk
+
+      - name: 6. 上传 APK 供你直接下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: Animal-Island-Android-APK
+          path: build/animal_island.apk
