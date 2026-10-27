@@ -30,7 +30,7 @@ const TILE_SIZE: int = 16
 const SAVE_PATH: String = "user://little_island_diary_save_v2.json"
 const TEMP_SAVE_PATH: String = "user://little_island_diary_save_v2.tmp"
 const BAK_SAVE_PATH: String = "user://little_island_diary_save_v2.bak"
-const SAVE_VERSION: int = 7
+const SAVE_VERSION: int = 8
 
 # --- 《小岛日记》V1.0 核心锁定色板 ---
 const PAL_CREAM      := Color("#FFF2D6")
@@ -86,6 +86,10 @@ const ICON_PATHS: Dictionary = {
 	"apple":          "res://sprites/tools_items/apple.png",
 	"bench":          "res://sprites/tools_items/bench.png",
 	"street_lamp":    "res://sprites/tools_items/street_lamp.png",
+	"carrot":         "res://sprites/tools_items/flower.png",
+	"tomato":         "res://sprites/tools_items/apple.png",
+	"pumpkin":        "res://sprites/tools_items/grass_tile.png",
+	"strawberry":     "res://sprites/tools_items/butterfly.png",
 
 	# 系统 UI 专用图标 (res://sprites/ui/)
 	"calendar_ui":    "res://sprites/ui/calendar_ui.png",
@@ -153,7 +157,16 @@ enum ObjectType {
 	STUMP = 21,
 	MUSHROOM = 22,
 	VILLAGER_HOUSE = 23,
-	RAMP = 24
+	RAMP = 24,
+	LIBRARY = 25,
+	CANTEEN = 26,
+	SPORTS = 27,
+	FURNITURE_SHOP = 28,
+	SEED_SHOP = 29,
+	BOOKSHELF = 30,
+	RECORD_PLAYER = 31,
+	SHELL_SHELF = 32,
+	DINING_TABLE = 33
 }
 
 enum BuildTool {
@@ -165,7 +178,8 @@ enum BuildTool {
 	PLANT_PUT = 5,
 	BUILDING_PUT = 6,
 	DECOR_PUT = 7,
-	MOVE_OBJECT = 8
+	MOVE_OBJECT = 8,
+	FARM = 9
 }
 
 # --- 核心游戏状态 ---
@@ -364,7 +378,17 @@ const ITEM_DB: Dictionary = {
 	"shell":        {"name": "海贝壳",   "icon_key": "shell",        "type": "material",   "sell": 65,  "desc": "海浪冲上金沙滩的扇贝，可在商店出售"},
 	"fish":         {"name": "小海鱼",   "icon_key": "fish",         "type": "material",   "sell": 120, "desc": "清澈河海里钓起的小鱼，可在商店出售"},
 	"bug":          {"name": "黄粉蝶",   "icon_key": "butterfly",    "type": "material",   "sell": 100, "desc": "花丛间翩翩起舞的蝴蝶，可在商店出售"},
-	"apple":        {"name": "海岛苹果", "icon_key": "apple",        "type": "consumable", "sell": 50,  "desc": "香甜脆爽的红苹果，可直接使用品尝"}
+	"apple":        {"name": "海岛苹果", "icon_key": "apple",        "type": "consumable", "sell": 50,  "desc": "香甜脆爽的红苹果，可直接使用品尝"},
+	"fence_item":   {"name": "木栅栏",   "icon_key": "grass_tile",   "type": "placeable",  "obj_id": ObjectType.FENCE,   "price": 90,  "desc": "围出小院的木栅栏"},
+	"fountain_item":{"name": "清泉喷泉", "icon_key": "water_tile",   "type": "placeable",  "obj_id": ObjectType.FOUNTAIN,"price": 800, "desc": "哗啦啦的庭院喷泉"},
+	"carrot_seed":    {"name": "胡萝卜种子", "icon_key": "flower", "type": "seed", "crop": "carrot",     "price": 30, "desc": "3 天成熟，需要浇水"},
+	"tomato_seed":    {"name": "番茄种子",   "icon_key": "flower", "type": "seed", "crop": "tomato",     "price": 40, "desc": "4 天成熟，需要浇水"},
+	"pumpkin_seed":   {"name": "南瓜种子",   "icon_key": "flower", "type": "seed", "crop": "pumpkin",    "price": 60, "desc": "5 天成熟，需要浇水"},
+	"strawberry_seed":{"name": "草莓种子",   "icon_key": "flower", "type": "seed", "crop": "strawberry", "price": 80, "desc": "4 天成熟，需要浇水"},
+	"carrot":    {"name": "胡萝卜", "icon_key": "carrot",    "type": "crop", "sell": 60,  "desc": "脆生生的胡萝卜"},
+	"tomato":    {"name": "番茄",   "icon_key": "tomato",    "type": "crop", "sell": 90,  "desc": "红透的番茄"},
+	"pumpkin":   {"name": "南瓜",   "icon_key": "pumpkin",   "type": "crop", "sell": 150, "desc": "沉甸甸的南瓜"},
+	"strawberry":{"name": "草莓",   "icon_key": "strawberry","type": "crop", "sell": 120, "desc": "香甜的草莓"}
 }
 
 var inventory: Dictionary = {}
@@ -432,6 +456,19 @@ var toast_timer: float = 0.0
 var time_refresh_timer: float = 0.0
 var cached_day_key: String = ""
 var clock_hour: int = 12
+var player_knowledge: int = 0
+var speed_buff_timer: float = 0.0
+var action_menu_modal: Control = null
+var crops: Dictionary = {}
+var farm_seed_id: String = "carrot_seed"
+var build_sub_farm: int = 0  # 0=播种 1=浇水 2=收获
+
+const CROP_DB: Dictionary = {
+	"carrot":     {"name": "胡萝卜", "days": 3, "color": Color("#F08A61")},
+	"tomato":     {"name": "番茄",   "days": 4, "color": Color("#D9483B")},
+	"pumpkin":    {"name": "南瓜",   "days": 5, "color": Color("#E8A33D")},
+	"strawberry": {"name": "草莓",   "days": 4, "color": Color("#EE8398")}
+}
 var day_watch_timer: float = 0.0
 
 var right_action_box: VBoxContainer
@@ -702,6 +739,18 @@ func _init_default_island() -> void:
 	object_grid[22 + ox][19 + oy] = ObjectType.BENCH
 	object_grid[19 + ox][24 + oy] = ObjectType.SIGNBOARD
 
+	# 6b. 公共设施（阶段3）
+	object_grid[20][24] = ObjectType.LIBRARY
+	object_grid[38][24] = ObjectType.CANTEEN
+	object_grid[20][38] = ObjectType.SPORTS
+	object_grid[48][30] = ObjectType.FURNITURE_SHOP
+	object_grid[24][42] = ObjectType.SEED_SHOP
+	# 6c. 居民各自的小屋（阶段7 的室内入口）
+	object_grid[18][31] = ObjectType.VILLAGER_HOUSE
+	object_grid[16][36] = ObjectType.VILLAGER_HOUSE
+	object_grid[44][34] = ObjectType.VILLAGER_HOUSE
+	object_grid[34][44] = ObjectType.VILLAGER_HOUSE
+
 	# 家园小花园围栏与耕地
 	for fx in [13, 14, 17]:
 		object_grid[fx + ox][19 + oy] = ObjectType.FENCE
@@ -910,7 +959,8 @@ func _physics_process(delta: float) -> void:
 		if move_dir.length() > 0.05:
 			player_facing = move_dir
 			walk_anim_time += delta * 10.0
-			var spd: float = BASE_MOVE_SPEED * setting_move_speed_scale
+			var buff: float = 1.2 if speed_buff_timer > 0.0 else 1.0
+			var spd: float = BASE_MOVE_SPEED * setting_move_speed_scale * buff
 			_move_player_with_collision(move_dir * spd * delta)
 			if hud_overlay_draw != null:
 				hud_overlay_draw.queue_redraw()
@@ -925,6 +975,9 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if speed_buff_timer > 0.0:
+		speed_buff_timer = maxf(0.0, speed_buff_timer - delta)
+
 	if toast_timer > 0.0:
 		toast_timer -= delta
 		if toast_timer <= 0.0 and toast_panel != null:
@@ -997,6 +1050,12 @@ func _init_residents() -> void:
 		a["chat_cd"] = 0.0
 		a["greet_cd"] = 0.0
 		a["stuck_t"] = 0.0
+		var house_cells: Dictionary = {
+			"rabbit": Vector2i(22, 33), "cat": Vector2i(18, 31), "fox": Vector2i(16, 36),
+			"bear": Vector2i(44, 34), "penguin": Vector2i(34, 44)
+		}
+		var hc: Vector2i = house_cells.get(str(a["id"]), Vector2i(22, 33))
+		a["house"] = Vector2(hc) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
 	# 初始化两两关系
 	for i in range(animals.size()):
 		for j in range(animals.size()):
@@ -1365,6 +1424,17 @@ func _resident_best_friend_line(i: int) -> String:
 
 func _resident_interact(i: int) -> void:
 	var a: Dictionary = animals[i]
+	# 手上有贝壳/花苗/苹果时自动送出一份，好感提升更多（阶段4）
+	var gift_id: String = ""
+	for gid in ["shell", "flower_seed", "apple"]:
+		if int(inventory.get(gid, 0)) > 0:
+			gift_id = str(gid)
+			break
+	if gift_id != "" and int(a["affinity"]) < 90:
+		_consume_item(gift_id, 1)
+		a["affinity"] = clampi(int(a["affinity"]) + 6, 0, 100)
+		_resident_add_memory(i, "gift", "player", "收到了你送的%s" % str(ITEM_DB[gift_id]["name"]), 6)
+		_show_toast("%s 收下了你的%s，好感 +6" % [str(a["name"]), str(ITEM_DB[gift_id]["name"])])
 	a["affinity"] = clampi(int(a["affinity"]) + 3, 0, 100)
 	a["needs"]["social"] = clampf(float(a["needs"]["social"]) + 0.15, 0.0, 1.0)
 	a["needs"]["fun"] = clampf(float(a["needs"]["fun"]) + 0.05, 0.0, 1.0)
@@ -1438,7 +1508,10 @@ func is_cell_walkable(gx: int, gy: int, allow_high: bool = true) -> bool:
 		ObjectType.BUSH, ObjectType.BENCH, ObjectType.LAMP, ObjectType.FENCE,
 		ObjectType.HOUSE, ObjectType.VILLAGER_HOUSE, ObjectType.SHOP, ObjectType.CONSTRUCTION,
 		ObjectType.FOUNTAIN, ObjectType.MAILBOX, ObjectType.FLOWER_PLANTER,
-		ObjectType.SIGNBOARD, ObjectType.ROCK, ObjectType.STUMP
+		ObjectType.SIGNBOARD, ObjectType.ROCK, ObjectType.STUMP,
+		ObjectType.LIBRARY, ObjectType.CANTEEN, ObjectType.SPORTS,
+		ObjectType.FURNITURE_SHOP, ObjectType.SEED_SHOP,
+		ObjectType.BOOKSHELF, ObjectType.RECORD_PLAYER, ObjectType.SHELL_SHELF, ObjectType.DINING_TABLE
 	]:
 		return false
 	return true
@@ -1531,6 +1604,12 @@ func _refresh_nearby_interaction() -> void:
 
 	var p_cell: Vector2i = world_to_grid(player_pos)
 	var f_cell: Vector2i = get_front_cell()
+	var front_key: String = _crop_key(f_cell)
+	if crops.has(front_key) and _crop_ready(crops[front_key]):
+		nearby_interact_type = "harvest"
+		nearby_interact_cell = f_cell
+		interact_btn_label.text = "收获"
+		return
 	var check_cells: Array[Vector2i] = [
 		f_cell, p_cell,
 		p_cell + Vector2i(0, -1), p_cell + Vector2i(0, 1),
@@ -1582,6 +1661,31 @@ func _refresh_nearby_interaction() -> void:
 				nearby_interact_cell = c
 				interact_btn_label.text = "休息"
 				return
+			ObjectType.LIBRARY:
+				nearby_interact_type = "library"
+				nearby_interact_cell = c
+				interact_btn_label.text = "看书"
+				return
+			ObjectType.CANTEEN:
+				nearby_interact_type = "canteen"
+				nearby_interact_cell = c
+				interact_btn_label.text = "用餐"
+				return
+			ObjectType.SPORTS:
+				nearby_interact_type = "sports"
+				nearby_interact_cell = c
+				interact_btn_label.text = "运动"
+				return
+			ObjectType.FURNITURE_SHOP:
+				nearby_interact_type = "furniture"
+				nearby_interact_cell = c
+				interact_btn_label.text = "家具"
+				return
+			ObjectType.SEED_SHOP:
+				nearby_interact_type = "seed_shop"
+				nearby_interact_cell = c
+				interact_btn_label.text = "种子"
+				return
 
 	interact_btn_label.text = "互动"
 
@@ -1607,8 +1711,7 @@ func _on_interact_pressed() -> void:
 		"shop":
 			_open_shop_modal()
 		"house":
-			_open_dialog_modal("温馨的岛民小屋", "推开木门回到温暖的小屋，阳光洒在奶油色地毯上。\n（已自动为你保存最新《小岛日记》存档）")
-			_save_game()
+			_enter_house(nearby_interact_cell)
 		"mailbox":
 			_open_dialog_modal("小岛木制信箱", "收到来自动物居民的明信片：\n「在属于自己的小岛上，慢慢生活。今天也去海边或松林走走吧！」")
 		"fountain":
@@ -1618,8 +1721,20 @@ func _on_interact_pressed() -> void:
 			_open_dialog_modal("小岛木质指示牌", "↖ 西北：静谧松林与高地瀑布\n⬆ 中央：喷泉广场与温馨小屋\n➡ 河东：海岛杂货铺\n⬇ 正南：阳光金沙滩与观海木栈桥")
 		"construction":
 			_open_dialog_modal("建筑施工围挡", "新建筑正在施工中，将在现实日期进入次日清晨（05:00后）自动完工落成！")
+		"harvest":
+			_harvest_crop_at(nearby_interact_cell)
 		"bench":
 			_show_toast("坐在温暖的木长椅上听海浪声，真惬意~")
+		"library":
+			_open_library()
+		"canteen":
+			_open_canteen()
+		"sports":
+			_open_sports()
+		"furniture":
+			_open_furniture_shop()
+		"seed_shop":
+			_open_seed_shop()
 		_:
 			_show_toast("靠近小动物、海滩贝壳、喷泉、信箱或杂货铺即可点击互动！")
 
@@ -1684,6 +1799,11 @@ func _on_use_tool_pressed() -> void:
 				_show_toast("请面朝树木或户外家具再使用伐木斧")
 		"watering_can":
 			_spawn_burst_effect(cell_center, PAL_SKY_BLUE)
+			if _water_crop_at(f_cell):
+				_show_toast("给作物浇了水，明天就会长大一点")
+				_refresh_hotbar_ui()
+				_refresh_nearby_interaction()
+				return
 			if o_type in [ObjectType.FLOWER_PINK, ObjectType.FLOWER_YELLOW]:
 				object_grid[f_cell.x][f_cell.y] = ObjectType.FLOWER_WATERED
 				_show_toast("给花丛浇了清泉水，花瓣闪着晶莹的光芒！")
@@ -1697,12 +1817,7 @@ func _on_use_tool_pressed() -> void:
 			else:
 				_show_toast("在草地或花丛旁挥网更容易遇到蝴蝶哦")
 		"rod":
-			if g_type in [GroundType.RIVER, GroundType.SHALLOW_WATER, GroundType.DEEP_WATER]:
-				_spawn_burst_effect(cell_center, PAL_SKY_BLUE)
-				_add_item("fish", 1)
-				_show_toast("水花一溅！钓上了一条活蹦乱跳的【小海鱼】×1！")
-			else:
-				_show_toast("请面朝河流或大海再抛竿钓鱼哦")
+			_fishing_action()
 		_:
 			if item_info.get("type", "") == "placeable":
 				var count: int = int(inventory.get(item_id, 0))
@@ -1716,6 +1831,9 @@ func _on_use_tool_pressed() -> void:
 					_show_toast("成功放置了【" + str(item_info["name"]) + "】！")
 				else:
 					_show_toast("前方格子已有物体或是水面，无法放置")
+			elif item_info.get("type", "") == "seed":
+				if _plant_seed_at(f_cell, item_id):
+					_show_toast("播下了%s，记得每天浇水" % str(item_info["name"]))
 			elif item_info.get("type", "") == "consumable":
 				_consume_item(item_id, 1)
 				_spawn_burst_effect(player_pos, PAL_CORAL)
@@ -1865,6 +1983,9 @@ func _apply_build_tool_to_cell(gx: int, gy: int, tool_id: int, stroke_changes: A
 	if not is_cell_editable_for_tool(gx, gy, tool_id):
 		return false
 
+	if tool_id == BuildTool.FARM:
+		return _farm_action_at_cell(gx, gy)
+
 	var old_g: int = ground_grid[gx][gy]
 	var old_e: int = elevation_grid[gx][gy]
 	var old_o: int = object_grid[gx][gy]
@@ -2002,6 +2123,580 @@ func _execute_pending_box_selection() -> void:
 		_show_toast("已完成区域批量改造（共修改 %d 格）" % modified_count)
 	else:
 		_show_toast("所选区域无需修改或处于保护范围")
+
+# ==============================================================================
+# 钓鱼与图鉴（阶段8）
+# ==============================================================================
+
+const FISH_DB: Dictionary = {
+	"crucian":        {"name": "小鲫鱼",   "water": "river", "rarity": 0, "price": 60},
+	"carp":           {"name": "鲤鱼",     "water": "river", "rarity": 0, "price": 80},
+	"loach":          {"name": "泥鳅",     "water": "river", "rarity": 1, "price": 110},
+	"bass":           {"name": "河鲈",     "water": "river", "rarity": 1, "price": 140},
+	"eel":            {"name": "夜鳗",     "water": "river", "rarity": 2, "price": 260, "night": true},
+	"sardine":        {"name": "沙丁鱼",   "water": "sea",   "rarity": 0, "price": 70},
+	"mackerel":       {"name": "竹荚鱼",   "water": "sea",   "rarity": 0, "price": 95},
+	"sea_bream":      {"name": "鲷鱼",     "water": "sea",   "rarity": 1, "price": 180},
+	"flatfish":       {"name": "比目鱼",   "water": "sea",   "rarity": 1, "price": 200},
+	"squid":          {"name": "乌贼",     "water": "sea",   "rarity": 2, "price": 300, "night": true},
+	"tuna":           {"name": "金枪鱼",   "water": "sea",   "rarity": 3, "price": 600},
+	"moonfish":       {"name": "月光鱼",   "water": "sea",   "rarity": 3, "price": 900, "night": true}
+}
+
+var fishing_state: String = "idle"
+var fishing_timer: float = 0.0
+var fishing_cell: Vector2i = Vector2i(-1, -1)
+var fishing_water: String = "sea"
+var fishing_species: String = ""
+var caught_fish: Dictionary = {}
+
+func _fish_rarity_label(r: int) -> String:
+	return ["常见", "少见", "稀有", "传说"][clampi(r, 0, 3)]
+
+func _pick_fish(water: String) -> String:
+	var pool: Array = []
+	for id in FISH_DB.keys():
+		var f: Dictionary = FISH_DB[id]
+		if str(f["water"]) != water:
+			continue
+		if bool(f.get("night", false)) and not (clock_hour >= 20 or clock_hour < 6):
+			continue
+		var weight: int = [60, 25, 10, 4][clampi(int(f["rarity"]), 0, 3)]
+		for k in range(weight):
+			pool.append(str(id))
+	if pool.is_empty():
+		return "crucian" if water == "river" else "sardine"
+	return str(pool[randi() % pool.size()])
+
+func _fishing_action() -> void:
+	if fishing_state == "bite":
+		_success_fishing()
+		return
+	if fishing_state == "cast":
+		fishing_state = "idle"
+		_show_toast("收竿太早了，鱼还没上钩")
+		return
+	var f_cell: Vector2i = get_front_cell()
+	if not is_valid_cell(f_cell.x, f_cell.y):
+		_show_toast("面朝水面再抛竿")
+		return
+	var g: int = int(ground_grid[f_cell.x][f_cell.y])
+	if g not in [GroundType.RIVER, GroundType.SHALLOW_WATER, GroundType.DEEP_WATER]:
+		_show_toast("要面朝河流或大海才能抛竿")
+		return
+	fishing_cell = f_cell
+	fishing_water = "river" if g == GroundType.RIVER else "sea"
+	fishing_state = "cast"
+	fishing_timer = randf_range(1.4, 3.8)
+	_show_toast("抛竿了，安静等浮漂动…")
+
+func _update_fishing(delta: float) -> void:
+	if fishing_state == "cast":
+		fishing_timer -= delta
+		if fishing_timer <= 0.0:
+			fishing_species = _pick_fish(fishing_water)
+			fishing_state = "bite"
+			fishing_timer = 1.3
+			_show_toast("浮漂猛地一沉！快点「使用」收竿！")
+	elif fishing_state == "bite":
+		fishing_timer -= delta
+		if fishing_timer <= 0.0:
+			fishing_state = "idle"
+			_show_toast("犹豫了一下，鱼跑掉了…")
+
+func _success_fishing() -> void:
+	var f: Dictionary = FISH_DB.get(fishing_species, {})
+	var nm: String = str(f.get("name", "小鱼"))
+	var rarity: int = int(f.get("rarity", 0))
+	caught_fish[fishing_species] = int(caught_fish.get(fishing_species, 0)) + 1
+	_add_item("fish", 1)
+	fishing_state = "idle"
+	_spawn_burst_effect(Vector2(fishing_cell) * TILE_SIZE + Vector2(8, 8), PAL_SKY_BLUE)
+	_show_toast("钓到了【%s】！%s，可在杂货铺出售" % [nm, _fish_rarity_label(rarity)])
+
+func _open_fish_codex() -> void:
+	var lines: Array = []
+	var total: int = 0
+	var kinds: int = 0
+	for id in FISH_DB.keys():
+		var f: Dictionary = FISH_DB[id]
+		var c: int = int(caught_fish.get(str(id), 0))
+		total += c
+		if c > 0:
+			kinds += 1
+		lines.append("%s  %s  ×%d" % [str(f["name"]), _fish_rarity_label(int(f["rarity"])), c])
+	lines.append("")
+	lines.append("已收集 %d/%d 种，共 %d 条" % [kinds, FISH_DB.size(), total])
+	_open_dialog_modal("鱼类图鉴", "\n".join(lines))
+
+# ==============================================================================
+# 房屋与室内（阶段7）：每个房间有独立布局数据，进出保留室外位置
+# ==============================================================================
+
+var in_interior: bool = false
+var outdoor_pos: Vector2 = Vector2.ZERO
+var interior_modal: Control = null
+
+const INTERIOR_LAYOUTS: Dictionary = {
+	"player": {
+		"name": "我的小屋",
+		"floor": Color("#FFF2D6"),
+		"wall": Color("#E9D9BE"),
+		"items": [
+			{"t": "bed", "x": 14, "y": 96, "w": 46, "h": 32, "col": Color("#74C9ED")},
+			{"t": "table", "x": 110, "y": 104, "w": 40, "h": 26, "col": Color("#B98761")},
+			{"t": "shelf", "x": 250, "y": 70, "w": 70, "h": 18, "col": Color("#8A5B45")},
+			{"t": "rug", "x": 180, "y": 120, "w": 90, "h": 34, "col": Color("#EE8398")}
+		],
+		"actions": [{"text": "睡一会儿（保存进度）", "act": "sleep"}],
+		"desc": "奶油色的墙、木桌和一张软床，窗外能听见海浪。"
+	},
+	"rabbit": {
+		"name": "莉莉的小书房",
+		"floor": Color("#FBF3E4"), "wall": Color("#F2DEC0"),
+		"items": [
+			{"t": "shelf", "x": 20, "y": 60, "w": 96, "h": 22, "col": Color("#8A5B45")},
+			{"t": "desk", "x": 140, "y": 96, "w": 54, "h": 30, "col": Color("#B98761")},
+			{"t": "lamp", "x": 214, "y": 78, "w": 12, "h": 26, "col": Color("#F7D460")},
+			{"t": "plant", "x": 270, "y": 104, "w": 22, "h": 24, "col": Color("#39815D")}
+		],
+		"actions": [{"text": "翻阅书架上的书（+知识）", "act": "read"}],
+		"desc": "整面墙都是书，桌上摊着一本写到一半的笔记。"
+	},
+	"cat": {
+		"name": "奈奈的音乐屋",
+		"floor": Color("#F7E9E2"), "wall": Color("#F5B06C"),
+		"items": [
+			{"t": "record", "x": 40, "y": 70, "w": 44, "h": 34, "col": Color("#544A44")},
+			{"t": "sofa", "x": 140, "y": 96, "w": 90, "h": 34, "col": Color("#EE8398")},
+			{"t": "mic", "x": 260, "y": 80, "w": 10, "h": 40, "col": Color("#74C9ED")}
+		],
+		"actions": [{"text": "听一会儿唱片（移速+20%）", "act": "music"}],
+		"desc": "唱片机一直在转，墙上贴着演出的照片。"
+	},
+	"fox": {
+		"name": "阿洛的瞭望间",
+		"floor": Color("#EFE7DA"), "wall": Color("#39815D"),
+		"items": [
+			{"t": "desk", "x": 30, "y": 96, "w": 64, "h": 30, "col": Color("#8A5B45")},
+			{"t": "map", "x": 130, "y": 56, "w": 90, "h": 46, "col": Color("#F5DDA1")},
+			{"t": "telescope", "x": 260, "y": 74, "w": 14, "h": 34, "col": Color("#544A44")}
+		],
+		"actions": [{"text": "查看岛图（显示钓鱼点提示）", "act": "map"}],
+		"desc": "桌上铺着地图，窗边架着一支旧望远镜。"
+	},
+	"bear": {
+		"name": "布朗的厨房",
+		"floor": Color("#F6EDDC"), "wall": Color("#B98761"),
+		"items": [
+			{"t": "stove", "x": 26, "y": 84, "w": 56, "h": 36, "col": Color("#8A5B45")},
+			{"t": "table", "x": 140, "y": 100, "w": 92, "h": 32, "col": Color("#D9BC7E")},
+			{"t": "pot", "x": 262, "y": 86, "w": 24, "h": 24, "col": Color("#9BA2A8")}
+		],
+		"actions": [{"text": "尝一口热汤（移速+20%）", "act": "eat"}],
+		"desc": "锅还在咕嘟咕嘟响，空气里是南瓜汤的味道。"
+	},
+	"penguin": {
+		"name": "波波的贝壳屋",
+		"floor": Color("#E6F3F8"), "wall": Color("#379CC9"),
+		"items": [
+			{"t": "shelf", "x": 24, "y": 62, "w": 110, "h": 24, "col": Color("#F5DDA1")},
+			{"t": "chair", "x": 170, "y": 104, "w": 40, "h": 32, "col": Color("#F08A61")},
+			{"t": "window", "x": 260, "y": 56, "w": 62, "h": 44, "col": Color("#74C9ED")}
+		],
+		"actions": [{"text": "看看贝壳收藏（+知识）", "act": "shells"}],
+		"desc": "架子上摆着从各个海滩捡来的贝壳，按颜色排得整整齐齐。"
+	}
+}
+
+func _resident_id_for_house(cell: Vector2i) -> String:
+	for i in range(animals.size()):
+		var a: Dictionary = animals[i]
+		var hc: Vector2i = world_to_grid(a["house"])
+		if hc == cell:
+			return str(a["id"])
+	return ""
+
+func _enter_house(cell: Vector2i) -> void:
+	var house_id: String = ""
+	if int(object_grid[cell.x][cell.y]) == ObjectType.HOUSE:
+		house_id = "player"
+	else:
+		house_id = _resident_id_for_house(cell)
+		if house_id == "":
+			house_id = "rabbit"
+	if not INTERIOR_LAYOUTS.has(house_id):
+		_show_toast("门锁着，屋里没人")
+		return
+	var layout: Dictionary = INTERIOR_LAYOUTS[house_id]
+	in_interior = true
+	outdoor_pos = player_pos
+
+	if interior_modal != null and is_instance_valid(interior_modal):
+		interior_modal.queue_free()
+		interior_modal = null
+	var res: Array = _create_modal_base(str(layout["name"]), "home_ui", Vector2(430, 330))
+	var modal: Control = res[0]
+	var panel: Panel = res[1]
+
+	var room := Control.new()
+	room.position = Vector2(24, 46)
+	room.size = Vector2(382, 168)
+	room.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var layout_copy: Dictionary = layout
+	room.draw.connect(func():
+		room.draw_rect(Rect2(0, 0, 382, 168), layout_copy["wall"], true)
+		room.draw_rect(Rect2(0, 26, 382, 142), layout_copy["floor"], true)
+		for it in layout_copy["items"]:
+			var r := Rect2(float(it["x"]), float(it["y"]), float(it["w"]), float(it["h"]))
+			room.draw_rect(r, PAL_OUTLINE, true)
+			room.draw_rect(r.grow(-2), it["col"], true)
+		room.draw_rect(Rect2(150, 150, 40, 18), PAL_WOOD, true)
+	)
+	panel.add_child(room)
+
+	var desc := Label.new()
+	desc.text = str(layout["desc"])
+	desc.position = Vector2(24, 220)
+	desc.size = Vector2(382, 30)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_color_override("font_color", PAL_OUTLINE)
+	panel.add_child(desc)
+
+	var y: float = 252.0
+	for act in layout["actions"]:
+		var act_id: String = str(act["act"])
+		var b := _make_touch_btn(str(act["text"]), Vector2(184, 34), PAL_CREAM_DARK, PAL_OUTLINE)
+		b.position = Vector2(24, y)
+		b.pressed.connect(func():
+			_do_interior_action(act_id)
+		)
+		panel.add_child(b)
+		y += 40.0
+
+	var out_btn := _make_touch_btn("出门", Vector2(184, 34), PAL_CORAL, PAL_OUTLINE)
+	out_btn.position = Vector2(222, 252)
+	out_btn.pressed.connect(func():
+		_exit_house()
+	)
+	panel.add_child(out_btn)
+
+	interior_modal = modal
+	_open_modal(modal)
+
+func _exit_house() -> void:
+	in_interior = false
+	if interior_modal != null and is_instance_valid(interior_modal):
+		interior_modal.queue_free()
+		interior_modal = null
+	player_pos = outdoor_pos
+	_close_active_modal()
+	_show_toast("回到屋外，天色还和刚才一样")
+
+func _do_interior_action(act_id: String) -> void:
+	match act_id:
+		"sleep":
+			_save_game()
+			_show_toast("睡了一小会儿，进度已保存")
+		"read":
+			player_knowledge += 1
+			_show_toast("读到一段很有道理的话（知识 %d）" % player_knowledge)
+		"music", "eat":
+			speed_buff_timer = maxf(speed_buff_timer, 60.0)
+			_show_toast("心情变好了（移速+20%，60秒）")
+		"map":
+			_show_toast("地图上标注着：河流上游、南岸码头、东侧海湾都适合钓鱼")
+		"shells":
+			player_knowledge += 1
+			_show_toast("认识了新的贝壳（知识 %d）" % player_knowledge)
+
+# ==============================================================================
+# 种植系统（阶段6）：翻土 -> 播种 -> 浇水 -> 成熟 -> 收获
+# ==============================================================================
+
+func _crop_key(cell: Vector2i) -> String:
+	return "%d,%d" % [cell.x, cell.y]
+
+func _crop_ready(c: Dictionary) -> bool:
+	var cid: String = str(c.get("id", "carrot"))
+	var need_days: int = int(CROP_DB.get(cid, {}).get("days", 3))
+	return int(c.get("stage", 0)) >= need_days
+
+func _plant_seed_at(cell: Vector2i, seed_id: String) -> bool:
+	if not is_valid_cell(cell.x, cell.y):
+		return false
+	if not ITEM_DB.has(seed_id) or str(ITEM_DB[seed_id].get("type", "")) != "seed":
+		return false
+	if int(inventory.get(seed_id, 0)) <= 0:
+		_show_toast("没有%s了，去种子店买一些吧" % str(ITEM_DB[seed_id]["name"]))
+		return false
+	if int(ground_grid[cell.x][cell.y]) != GroundType.TILLED_SOIL:
+		_show_toast("要先用铁铲把草地翻成泥土地才能播种")
+		return false
+	if int(object_grid[cell.x][cell.y]) != ObjectType.NONE:
+		_show_toast("这块地已经有东西了")
+		return false
+	if crops.has(_crop_key(cell)):
+		_show_toast("这里已经种过作物了")
+		return false
+	crops[_crop_key(cell)] = {
+		"id": str(ITEM_DB[seed_id].get("crop", "carrot")),
+		"stage": 0,
+		"watered": false,
+		"day": _get_logical_day_key()
+	}
+	_consume_item(seed_id, 1)
+	_spawn_burst_effect(Vector2(cell) * TILE_SIZE + Vector2(8, 8), PAL_GRASS)
+	return true
+
+func _water_crop_at(cell: Vector2i) -> bool:
+	var key: String = _crop_key(cell)
+	if not crops.has(key):
+		return false
+	var c: Dictionary = crops[key]
+	if bool(c.get("watered", false)):
+		_show_toast("这块地今天已经浇过水了")
+		return true
+	c["watered"] = true
+	crops[key] = c
+	_spawn_burst_effect(Vector2(cell) * TILE_SIZE + Vector2(8, 8), PAL_SKY_BLUE)
+	return true
+
+func _harvest_crop_at(cell: Vector2i) -> bool:
+	var key: String = _crop_key(cell)
+	if not crops.has(key):
+		return false
+	var c: Dictionary = crops[key]
+	if not _crop_ready(c):
+		var left: int = int(CROP_DB.get(str(c["id"]), {}).get("days", 3)) - int(c["stage"])
+		_show_toast("还没成熟，再等 %d 天（记得每天浇水）" % maxi(1, left))
+		return false
+	var cid: String = str(c["id"])
+	crops.erase(key)
+	var amount: int = randi_range(1, 2)
+	_add_item(cid, amount)
+	_add_item(str(cid) + "_seed", 1)
+	_spawn_burst_effect(Vector2(cell) * TILE_SIZE + Vector2(8, 8), PAL_GOLD)
+	_show_toast("收获了【%s】×%d，还留了 1 颗种子" % [str(CROP_DB.get(cid, {}).get("name", cid)), amount])
+	return true
+
+func _farm_action_at_cell(gx: int, gy: int) -> bool:
+	var cell := Vector2i(gx, gy)
+	match build_sub_farm:
+		0:
+			return _plant_seed_at(cell, farm_seed_id)
+		1:
+			if _water_crop_at(cell):
+				return true
+			return false
+		_:
+			return _harvest_crop_at(cell)
+
+func _grow_crops_on_new_day() -> void:
+	var grown: int = 0
+	for key in crops.keys():
+		var c: Dictionary = crops[key]
+		if bool(c.get("watered", false)):
+			c["stage"] = int(c["stage"]) + 1
+			c["watered"] = false
+			c["day"] = _get_logical_day_key()
+			crops[key] = c
+			grown += 1
+	if grown > 0:
+		_show_toast("清晨的阳光里，%d 株作物长大了一点" % grown)
+
+func _draw_crop(p: Vector2, c: Dictionary) -> void:
+	var stage: int = int(c.get("stage", 0))
+	var cid: String = str(c.get("id", "carrot"))
+	var fruit_col: Color = CROP_DB.get(cid, {}).get("color", PAL_CORAL)
+	var need_days: int = int(CROP_DB.get(cid, {}).get("days", 3))
+	draw_rect(Rect2(p.x + 3, p.y + 12, 10, 2), PAL_EARTH.darkened(0.2), true)
+	if stage <= 0:
+		draw_rect(Rect2(p.x + 7, p.y + 8, 2, 4), PAL_FOREST, true)
+		draw_rect(Rect2(p.x + 6, p.y + 7, 2, 2), PAL_GRASS, true)
+	elif stage == 1:
+		draw_rect(Rect2(p.x + 7, p.y + 6, 2, 6), PAL_FOREST, true)
+		draw_rect(Rect2(p.x + 4, p.y + 6, 3, 3), PAL_GRASS, true)
+		draw_rect(Rect2(p.x + 9, p.y + 5, 3, 3), PAL_GRASS, true)
+	else:
+		draw_rect(Rect2(p.x + 7, p.y + 5, 2, 7), PAL_FOREST, true)
+		draw_rect(Rect2(p.x + 4, p.y + 4, 8, 4), PAL_GRASS, true)
+		if stage >= need_days:
+			draw_rect(Rect2(p.x + 6, p.y + 7, 4, 4), fruit_col, true)
+			draw_rect(Rect2(p.x + 7, p.y + 8, 2, 2), PAL_CREAM, true)
+	if bool(c.get("watered", false)):
+		draw_rect(Rect2(p.x + 11, p.y + 9, 2, 2), PAL_SKY_BLUE, true)
+
+# ==============================================================================
+# 岛屿公共设施（阶段3）与关系面板（阶段4）
+# ==============================================================================
+
+func _open_action_menu(title_str: String, icon_key: String, entries: Array, body: String = "") -> void:
+	if action_menu_modal != null and is_instance_valid(action_menu_modal):
+		action_menu_modal.queue_free()
+		action_menu_modal = null
+	var res: Array = _create_modal_base(title_str, icon_key, Vector2(430, 330))
+	var modal: Control = res[0]
+	var panel: Panel = res[1]
+	var y: float = 46.0
+	if body != "":
+		var lbl := Label.new()
+		lbl.text = body
+		lbl.position = Vector2(20, y)
+		lbl.size = Vector2(390, 54)
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.add_theme_font_size_override("font_size", 12)
+		lbl.add_theme_color_override("font_color", PAL_OUTLINE)
+		panel.add_child(lbl)
+		y += 58.0
+	for e in entries:
+		var b := _make_touch_btn(str(e.get("text", "确定")), Vector2(390, 38), PAL_CREAM_DARK, PAL_OUTLINE)
+		b.position = Vector2(20, y)
+		var cb: Callable = e.get("cb", Callable())
+		b.pressed.connect(func():
+			_close_active_modal()
+			if cb.is_valid():
+				cb.call()
+		)
+		panel.add_child(b)
+		y += 44.0
+	action_menu_modal = modal
+	_open_modal(modal)
+
+func _open_library() -> void:
+	var body := "安静的小岛图书馆。\n你已读 %d 本，居民们也会来这里看书。" % player_knowledge
+	var entries: Array = [
+		{"text": "读《岛屿地形学》 +1 知识", "cb": func(): _player_read(0)},
+		{"text": "读《潮汐与鱼群》 +1 知识", "cb": func(): _player_read(1)},
+		{"text": "读《小动物的心事》 +1 知识", "cb": func(): _player_read(2)},
+		{"text": "翻翻鱼类图鉴", "cb": func(): _open_fish_codex()},
+		{"text": "离开", "cb": func(): pass}
+	]
+	_open_action_menu("小岛图书馆", "island_map", entries, body)
+
+func _player_read(book: int) -> void:
+	player_knowledge += 1
+	if book == 0:
+		_show_toast("读完《岛屿地形学》：对地形改造更熟悉了（知识 %d）" % player_knowledge)
+	elif book == 1:
+		_show_toast("读完《潮汐与鱼群》：更懂鱼群的习性了（知识 %d）" % player_knowledge)
+	else:
+		_show_toast("读完《小动物的心事》：更懂居民们了（知识 %d）" % player_knowledge)
+
+func _open_canteen() -> void:
+	var body := "今日供应：海藻饭团 30 铃钱、暖胃热汤 15 铃钱。\n吃过之后脚步会轻快一阵子。\n当前铃钱：%d" % coins
+	var entries: Array = [
+		{"text": "海藻饭团 -30 铃钱（移速+20%，90秒）", "cb": func(): _player_eat(30, 90.0)},
+		{"text": "暖胃热汤 -15 铃钱（移速+20%，45秒）", "cb": func(): _player_eat(15, 45.0)},
+		{"text": "离开", "cb": func(): pass}
+	]
+	_open_action_menu("海岛食堂", "shop_ui", entries, body)
+
+func _player_eat(cost: int, buff: float) -> void:
+	if coins < cost:
+		_show_toast("铃钱不足：需要 %d，现有 %d" % [cost, coins])
+		return
+	coins -= cost
+	speed_buff_timer = maxf(speed_buff_timer, buff)
+	_update_time_and_lighting()
+	_show_toast("吃饱了！%.0f 秒内走得更快" % buff)
+
+func _open_sports() -> void:
+	var entries: Array = [
+		{"text": "跑两圈（移速+20%，60秒）", "cb": func(): _player_exercise()},
+		{"text": "看看大家的相处", "cb": func(): _open_relations()},
+		{"text": "离开", "cb": func(): pass}
+	]
+	_open_action_menu("海岛运动场", "use_tool_ui", entries, "平整的草场，居民们常来这里活动。")
+
+func _player_exercise() -> void:
+	speed_buff_timer = maxf(speed_buff_timer, 60.0)
+	_show_toast("跑了两圈，身体热起来了（移速+20%，60秒）")
+
+func _open_furniture_shop() -> void:
+	var entries: Array = []
+	for id in ["bench_item", "lamp_item", "potted_plant", "fence_item", "fountain_item"]:
+		if not ITEM_DB.has(id):
+			continue
+		var info: Dictionary = ITEM_DB[id]
+		var price: int = int(info.get("price", 100))
+		var iid := str(id)
+		var nm := str(info["name"])
+		entries.append({"text": "%s - %d 铃钱" % [nm, price], "cb": func(): _buy_item(iid, 1)})
+	entries.append({"text": "离开", "cb": func(): pass})
+	_open_action_menu("海岛家具店", "shop_ui", entries, "当前铃钱：%d" % coins)
+
+func _open_seed_shop() -> void:
+	var entries: Array = []
+	for id in ["carrot_seed", "tomato_seed", "pumpkin_seed", "strawberry_seed"]:
+		if not ITEM_DB.has(id):
+			continue
+		var iid := str(id)
+		var nm := str(ITEM_DB[id]["name"])
+		entries.append({"text": nm, "cb": func(): _open_seed_quantity(iid)})
+	entries.append({"text": "离开", "cb": func(): pass})
+	_open_action_menu("海岛种子店", "flower", entries, "当前铃钱：%d\n买到的种子可以播在翻好的土地上" % coins)
+
+func _open_seed_quantity(id: String) -> void:
+	var info: Dictionary = ITEM_DB[id]
+	var price: int = int(info.get("price", 30))
+	var entries: Array = [
+		{"text": "买 1 份 - %d 铃钱" % price, "cb": func(): _buy_item(id, 1)},
+		{"text": "买 5 份 - %d 铃钱（批量）" % (price * 5), "cb": func(): _buy_item(id, 5)},
+		{"text": "返回", "cb": func(): _open_seed_shop()}
+	]
+	_open_action_menu(str(info["name"]), "flower", entries, "每份 3 颗种子，买得越多越省事。")
+
+func _buy_item(id: String, qty: int) -> void:
+	if not ITEM_DB.has(id):
+		return
+	var info: Dictionary = ITEM_DB[id]
+	var price: int = int(info.get("price", 100))
+	var total: int = price * qty
+	if coins < total:
+		_show_toast("铃钱不足：需要 %d，现有 %d" % [total, coins])
+		return
+	coins -= total
+	var give: int = qty
+	if str(info.get("type", "")) == "seed":
+		give = qty * 3
+	_add_item(id, give)
+	_update_time_and_lighting()
+	_show_toast("购买成功：%s ×%d，花费 %d 铃钱" % [str(info["name"]), give, total])
+
+func _affinity_tier(v: int) -> String:
+	if v >= 80:
+		return "挚友"
+	elif v >= 55:
+		return "好朋友"
+	elif v >= 30:
+		return "熟人"
+	elif v >= 10:
+		return "点头之交"
+	return "陌生"
+
+func _open_relations() -> void:
+	var lines: Array = []
+	for i in range(animals.size()):
+		var a: Dictionary = animals[i]
+		lines.append("%s（%s）· 与玩家：%s ♥%d" % [str(a["name"]), str(a["trait"]), _affinity_tier(int(a["affinity"])), int(a["affinity"])])
+		var best_id := ""
+		var best_v := -999
+		var worst_id := ""
+		var worst_v := 999
+		for k in a["relations"].keys():
+			var v: int = int(a["relations"][k])
+			if v > best_v:
+				best_v = v
+				best_id = str(k)
+			if v < worst_v:
+				worst_v = v
+				worst_id = str(k)
+		if best_id != "":
+			lines.append("   最亲近 %s %+d ／ 最疏远 %s %+d" % [best_id, best_v, worst_id, worst_v])
+		lines.append("")
+	_open_dialog_modal("小岛关系", "\n".join(lines))
 
 # ==============================================================================
 # 统一触屏输入处理
@@ -2456,6 +3151,9 @@ func _draw() -> void:
 			var o_type: int = object_grid[x][y]
 			if o_type != ObjectType.NONE:
 				_draw_storybook_object_base(Vector2(x * TILE_SIZE, y * TILE_SIZE), o_type)
+			var crop_key: String = "%d,%d" % [x, y]
+			if crops.has(crop_key):
+				_draw_crop(Vector2(x * TILE_SIZE, y * TILE_SIZE), crops[crop_key])
 
 		for a in animals:
 			var ay_row: int = clampi(int(floor(float(a["pos"].y) / TILE_SIZE)), 0, GRID_HEIGHT - 1)
@@ -2471,6 +3169,15 @@ func _draw() -> void:
 			var o_type: int = object_grid[x][y]
 			if o_type in [ObjectType.TREE_OAK, ObjectType.TREE_PINE, ObjectType.TREE_PALM]:
 				_draw_tree_canopy_layer(Vector2(x * TILE_SIZE, y * TILE_SIZE), o_type)
+
+	# 4.4 钓鱼浮漂
+	if fishing_state != "idle" and is_valid_cell(fishing_cell.x, fishing_cell.y):
+		var bob_pt := Vector2(fishing_cell) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
+		var bob_off: float = sin(env_anim_time * 4.0) * 1.5
+		draw_circle(bob_pt + Vector2(0, bob_off), 2.6, Color.WHITE)
+		draw_circle(bob_pt + Vector2(0, bob_off), 1.2, PAL_CORAL)
+		if fishing_state == "bite":
+			draw_circle(bob_pt + Vector2(0, -10), 3.2, PAL_GOLD)
 
 	# 4.5 点击寻路的路径预览与目标点脉冲
 	if game_state == GameState.EXPLORE_MODE and path_target_cell != Vector2i(-1, -1):
@@ -2642,6 +3349,45 @@ func _draw_storybook_object_base(p: Vector2, o_type: int) -> void:
 				draw_rect(Rect2(p.x + sx + 3, p.y - 7, 3, 4), PAL_CORAL, true)
 			draw_rect(Rect2(p.x + 4, p.y + 4, 7, 11), PAL_EARTH, true)
 			draw_rect(Rect2(p.x + 13, p.y + 3, 6, 5), PAL_GOLD, true)
+		ObjectType.LIBRARY:
+			draw_rect(Rect2(p.x - 8, p.y + 12, 32, 5), Color(0, 0, 0, 0.22), true)
+			draw_rect(Rect2(p.x - 7, p.y - 14, 30, 30), PAL_OUTLINE, true)
+			draw_rect(Rect2(p.x - 5, p.y - 5, 26, 20), PAL_CREAM, true)
+			draw_rect(Rect2(p.x - 6, p.y - 13, 28, 10), PAL_OCEAN_BLUE, true)
+			draw_rect(Rect2(p.x - 2, p.y + 2, 6, 9), PAL_WOOD, true)
+			draw_rect(Rect2(p.x + 8, p.y + 2, 6, 9), PAL_WOOD, true)
+			draw_rect(Rect2(p.x + 12, p.y - 16, 4, 6), PAL_GOLD, true)
+		ObjectType.CANTEEN:
+			draw_rect(Rect2(p.x - 8, p.y + 12, 32, 5), Color(0, 0, 0, 0.22), true)
+			draw_rect(Rect2(p.x - 7, p.y - 14, 30, 30), PAL_OUTLINE, true)
+			draw_rect(Rect2(p.x - 5, p.y - 5, 26, 20), PAL_CREAM, true)
+			draw_rect(Rect2(p.x - 6, p.y - 13, 28, 10), PAL_CORAL, true)
+			for sx in range(-4, 20, 7):
+				draw_rect(Rect2(p.x + sx, p.y - 6, 4, 3), PAL_CREAM, true)
+			draw_rect(Rect2(p.x + 5, p.y + 3, 8, 9), PAL_WOOD, true)
+			draw_rect(Rect2(p.x + 15, p.y + 1, 5, 5), PAL_GOLD, true)
+		ObjectType.SPORTS:
+			draw_rect(Rect2(p.x - 18, p.y - 14, 52, 42), PAL_OUTLINE, true)
+			draw_rect(Rect2(p.x - 16, p.y - 12, 48, 38), Color("#8CCB74"), true)
+			draw_rect(Rect2(p.x - 16, p.y + 6, 48, 1.5), Color(1, 1, 1, 0.75), true)
+			draw_arc(Vector2(p.x + 8, p.y + 7), 9.0, 0, TAU, 18, Color(1, 1, 1, 0.75), 1.2)
+			draw_rect(Rect2(p.x - 2, p.y - 20, 14, 7), PAL_SAND, true)
+			draw_rect(Rect2(p.x - 2, p.y - 20, 14, 2), PAL_WOOD, true)
+		ObjectType.FURNITURE_SHOP:
+			draw_rect(Rect2(p.x - 8, p.y + 12, 32, 5), Color(0, 0, 0, 0.22), true)
+			draw_rect(Rect2(p.x - 7, p.y - 14, 30, 30), PAL_OUTLINE, true)
+			draw_rect(Rect2(p.x - 5, p.y - 5, 26, 20), PAL_CREAM_DARK, true)
+			draw_rect(Rect2(p.x - 6, p.y - 13, 28, 10), PAL_WOOD, true)
+			draw_rect(Rect2(p.x + 4, p.y + 3, 8, 10), PAL_EARTH, true)
+			draw_rect(Rect2(p.x + 15, p.y + 2, 5, 4), PAL_GOLD, true)
+		ObjectType.SEED_SHOP:
+			draw_rect(Rect2(p.x - 8, p.y + 12, 32, 5), Color(0, 0, 0, 0.22), true)
+			draw_rect(Rect2(p.x - 7, p.y - 14, 30, 30), PAL_OUTLINE, true)
+			draw_rect(Rect2(p.x - 5, p.y - 5, 26, 20), PAL_CREAM, true)
+			draw_rect(Rect2(p.x - 6, p.y - 13, 28, 10), PAL_FOREST, true)
+			draw_rect(Rect2(p.x - 3, p.y - 10, 22, 3), PAL_GRASS, true)
+			draw_rect(Rect2(p.x + 5, p.y + 3, 8, 10), PAL_WOOD, true)
+			draw_rect(Rect2(p.x + 15, p.y + 1, 4, 4), PAL_PINK, true)
 		ObjectType.RAMP:
 			# 木台阶坡道：四道台阶 + 朝向相邻高地的一侧画一个小亮块作为提示
 			var rgx: int = int(round(p.x / float(TILE_SIZE)))
@@ -3152,7 +3898,7 @@ func _build_terraforming_toolbar() -> void:
 	confirm_cancel_row.add_theme_constant_override("separation", 4)
 	build_right_box.add_child(confirm_cancel_row)
 
-	build_confirm_box_btn = _make_icon_label_btn("confirm", "确认", Vector2(44, 40), PAL_GRASS, true, 16)[0]
+	build_confirm_box_btn = _make_icon_label_btn("confirm", "确定", Vector2(44, 40), PAL_GRASS, true, 16)[0]
 	build_confirm_box_btn.visible = false
 	build_confirm_box_btn.pressed.connect(_execute_pending_box_selection)
 	confirm_cancel_row.add_child(build_confirm_box_btn)
@@ -3188,12 +3934,13 @@ func _build_terraforming_toolbar() -> void:
 		{"id": BuildTool.PLANT_PUT,    "name": "植物", "icon": "flower"},
 		{"id": BuildTool.BUILDING_PUT, "name": "建筑", "icon": "house"},
 		{"id": BuildTool.DECOR_PUT,    "name": "装饰", "icon": "potted_plant"},
-		{"id": BuildTool.MOVE_OBJECT,  "name": "移动", "icon": "move_ui"}
+		{"id": BuildTool.MOVE_OBJECT,  "name": "移动", "icon": "move_ui"},
+		{"id": BuildTool.FARM,         "name": "农事", "icon": "flower"}
 	]
 
 	build_tool_buttons.clear()
 	for td in tool_defs:
-		var res_arr: Array = _make_icon_label_btn(td["icon"], td["name"], Vector2(53, 48), PAL_CREAM_DARK, true, 22)
+		var res_arr: Array = _make_icon_label_btn(td["icon"], td["name"], Vector2(46, 48), PAL_CREAM_DARK, true, 20)
 		var t_btn: Button = res_arr[0]
 		var tid: int = int(td["id"])
 		t_btn.pressed.connect(func():
@@ -3217,6 +3964,15 @@ func _on_cycle_build_subtype() -> void:
 		else:
 			build_sub_road = GroundType.STONE_PATH
 			_show_toast("道路样式切换为：【村庄石板路】")
+	elif current_build_tool == BuildTool.FARM:
+		if build_sub_farm == 0:
+			var seeds: Array = ["carrot_seed", "tomato_seed", "pumpkin_seed", "strawberry_seed"]
+			var idx: int = seeds.find(farm_seed_id)
+			farm_seed_id = str(seeds[(idx + 1) % seeds.size()])
+			_show_toast("农事种子切换为：【%s】" % str(ITEM_DB[farm_seed_id]["name"]))
+		else:
+			build_sub_farm = (build_sub_farm + 1) % 3
+			_show_toast("农事动作切换为：【%s】" % ["播种", "浇水", "收获"][build_sub_farm])
 	elif current_build_tool == BuildTool.CLIFF_RAISE:
 		if build_sub_cliff == 0:
 			build_sub_cliff = 1
@@ -3281,6 +4037,8 @@ func _update_build_ui_labels() -> void:
 		BuildTool.PLANT_PUT:    tool_desc = "【植物】种植花草/灌木/树木"
 		BuildTool.BUILDING_PUT: tool_desc = "【建筑】选址建造新房屋"
 		BuildTool.DECOR_PUT:    tool_desc = "【装饰】布置盆栽/长椅/路灯/喷泉"
+		BuildTool.FARM:
+			tool_desc = "【农事】%s（%s）" % [["播种", "浇水", "收获"][build_sub_farm], str(ITEM_DB[farm_seed_id]["name"])]
 		BuildTool.MOVE_OBJECT:
 			if moving_picked_obj == ObjectType.NONE:
 				tool_desc = "【移动】第1步：点击要搬运的物体"
@@ -3686,7 +4444,7 @@ func _build_all_modals() -> void:
 	confirm_label.add_theme_color_override("font_color", PAL_OUTLINE)
 	cfm_panel.add_child(confirm_label)
 
-	var cfm_yes: Button = _make_icon_label_btn("confirm_ui", "确认执行", Vector2(140, 40), PAL_CORAL, false, 20)[0]
+	var cfm_yes: Button = _make_icon_label_btn("confirm_ui", "确定", Vector2(140, 40), PAL_CORAL, false, 20)[0]
 	cfm_yes.position = Vector2(48, 132)
 	cfm_yes.pressed.connect(func():
 		_close_active_modal()
@@ -3918,6 +4676,7 @@ func _check_day_rollover() -> void:
 		if done > 0:
 			_show_toast("新的一天开始了！%d 座建筑已经落成" % done)
 			_save_game()
+		_grow_crops_on_new_day()
 
 func _save_game() -> bool:
 	var residents_state: Array = []
@@ -3940,6 +4699,9 @@ func _save_game() -> bool:
 		"inventory": inventory,
 		"hotbar": hotbar,
 		"selected_hotbar_index": selected_hotbar_index,
+		"player_knowledge": player_knowledge,
+		"crops": crops,
+		"caught_fish": caught_fish,
 		"residents": residents_state,
 		"settings": {
 			"camera_zoom": setting_camera_zoom,
@@ -4047,6 +4809,35 @@ func _load_game() -> void:
 		for i in range(6):
 			hotbar[i] = str(hb[i])
 
+	player_knowledge = maxi(0, int(data.get("player_knowledge", 0)))
+	if data.has("caught_fish") and typeof(data["caught_fish"]) == TYPE_DICTIONARY:
+		caught_fish.clear()
+		var cf: Dictionary = data["caught_fish"]
+		for k in cf.keys():
+			if FISH_DB.has(str(k)):
+				caught_fish[str(k)] = maxi(0, int(cf[k]))
+
+	if data.has("crops") and typeof(data["crops"]) == TYPE_DICTIONARY:
+		crops.clear()
+		var cds: Dictionary = data["crops"]
+		for k in cds.keys():
+			if typeof(cds[k]) == TYPE_DICTIONARY:
+				var cd: Dictionary = cds[k]
+				crops[str(k)] = {
+					"id": str(cd.get("id", "carrot")),
+					"stage": maxi(0, int(cd.get("stage", 0))),
+					"watered": bool(cd.get("watered", false)),
+					"day": str(cd.get("day", ""))
+				}
+		var today_key: String = _get_logical_day_key()
+		for k in crops.keys():
+			var c2: Dictionary = crops[k]
+			if str(c2.get("day", "")) != "" and today_key > str(c2.get("day", "")) and bool(c2.get("watered", false)):
+				c2["stage"] = int(c2["stage"]) + 1
+				c2["watered"] = false
+				c2["day"] = today_key
+				crops[k] = c2
+
 	if data.has("selected_hotbar_index"):
 		selected_hotbar_index = clampi(int(data["selected_hotbar_index"]), 0, 5)
 
@@ -4112,7 +4903,7 @@ func _load_game() -> void:
 				# 逐格 clamp，坏档最多表现为局部默认地形，不会数组越界崩溃
 				ground_grid[x][y] = clampi(int(gg[x][y]), 0, GroundType.TILLED_SOIL)
 				elevation_grid[x][y] = clampi(int(eg[x][y]), 0, 2)
-				object_grid[x][y] = clampi(int(og[x][y]), 0, ObjectType.RAMP)
+				object_grid[x][y] = clampi(int(og[x][y]), 0, ObjectType.DINING_TABLE)
 
 	var saved_day: String = str(data.get("logical_day_key", ""))
 	if saved_day != "" and _get_logical_day_key() > saved_day:
