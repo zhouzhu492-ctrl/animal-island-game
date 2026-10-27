@@ -25,6 +25,8 @@ const GRID_HEIGHT: int = 44
 const TILE_SIZE: int = 16
 const SAVE_PATH: String = "user://little_island_diary_save_v2.json"
 const TEMP_SAVE_PATH: String = "user://little_island_diary_save_v2.tmp"
+const BAK_SAVE_PATH: String = "user://little_island_diary_save_v2.bak"
+const SAVE_VERSION: int = 5
 
 # --- 《小岛日记》V1.0 核心锁定色板 ---
 const PAL_CREAM      := Color("#FFF2D6")
@@ -146,7 +148,8 @@ enum ObjectType {
 	ROCK = 20,
 	STUMP = 21,
 	MUSHROOM = 22,
-	VILLAGER_HOUSE = 23
+	VILLAGER_HOUSE = 23,
+	RAMP = 24
 }
 
 enum BuildTool {
@@ -319,6 +322,7 @@ var build_brush_size: int = 1
 var build_sub_road: int = GroundType.STONE_PATH
 var build_sub_plant: int = ObjectType.FLOWER_PINK
 var build_sub_decor: int = ObjectType.FLOWER_PLANTER
+var build_sub_cliff: int = 0  # 0=悬崖(抬高) 1=坡道(连接高度)
 var is_box_select_mode: bool = false
 var is_camera_pan_mode: bool = false
 
@@ -357,6 +361,8 @@ var toast_panel: Panel
 var toast_label: Label
 var toast_timer: float = 0.0
 var time_refresh_timer: float = 0.0
+var cached_day_key: String = ""
+var day_watch_timer: float = 0.0
 
 var right_action_box: VBoxContainer
 var interact_btn: Button
@@ -432,6 +438,7 @@ func _ready() -> void:
 	_on_viewport_size_changed()
 
 	_switch_game_state(GameState.TITLE_SCREEN)
+	cached_day_key = _get_logical_day_key()
 
 # ==============================================================================
 # 图标资源统一加载器（优先 load 工程资源，兼容 Image.load_from_file，零缺失保底）
@@ -748,6 +755,12 @@ func _process(delta: float) -> void:
 		time_refresh_timer = 0.0
 		_update_time_and_lighting()
 
+	# 游戏内跨过 05:00 也要结算施工，不必退出重进
+	day_watch_timer += delta
+	if day_watch_timer >= 5.0:
+		day_watch_timer = 0.0
+		_check_day_rollover()
+
 	if game_state == GameState.EXPLORE_MODE and active_modal == null:
 		interact_check_accum += delta
 		if interact_check_accum >= 0.12:
@@ -781,7 +794,7 @@ func _update_animals(delta: float) -> void:
 			var dir: Vector2 = (target - pos).normalized()
 			var next_pos: Vector2 = pos + dir * 22.0 * delta
 			var cell: Vector2i = world_to_grid(next_pos)
-			if is_cell_walkable(cell.x, cell.y) and next_pos.distance_to(player_pos) > 14.0:
+			if is_cell_walkable(cell.x, cell.y, false) and next_pos.distance_to(player_pos) > 14.0:
 				a["pos"] = next_pos
 			else:
 				a["target"] = pos
@@ -792,7 +805,7 @@ func _update_animals(delta: float) -> void:
 				var home: Vector2 = a["home"]
 				var candidate: Vector2 = home + Vector2(randf_range(-48.0, 48.0), randf_range(-48.0, 48.0))
 				var c_cell: Vector2i = world_to_grid(candidate)
-				if is_cell_walkable(c_cell.x, c_cell.y):
+				if is_cell_walkable(c_cell.x, c_cell.y, false):
 					a["target"] = candidate
 			a["wait_timer"] = wt
 
@@ -806,13 +819,15 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 func is_valid_cell(gx: int, gy: int) -> bool:
 	return gx >= 0 and gx < GRID_WIDTH and gy >= 0 and gy < GRID_HEIGHT
 
-func is_cell_walkable(gx: int, gy: int) -> bool:
+func is_cell_walkable(gx: int, gy: int, allow_high: bool = true) -> bool:
 	if not is_valid_cell(gx, gy):
 		return false
 	var g_type: int = ground_grid[gx][gy]
 	if g_type in [GroundType.DEEP_WATER, GroundType.SHALLOW_WATER, GroundType.RIVER]:
 		return false
-	if elevation_grid[gx][gy] != 1:
+	var elev: int = int(elevation_grid[gx][gy])
+	# 普通地面(1)永远可走；二层高地(2)需要调用方显式允许（玩家可以，小动物不行）
+	if elev != 1 and not (allow_high and elev == 2):
 		return false
 	var o_type: int = object_grid[gx][gy]
 	if o_type in [
@@ -824,6 +839,27 @@ func is_cell_walkable(gx: int, gy: int) -> bool:
 	]:
 		return false
 	return true
+
+# 单步高度通行规则（坡道系统的核心）：
+#   同高度      -> 直接通过
+#   高度差 == 1 -> 起点或终点必须是坡道(RAMP)
+#   高度差 > 1  -> 禁止
+func can_step_between(from_cell: Vector2i, to_cell: Vector2i) -> bool:
+	if not is_cell_walkable(to_cell.x, to_cell.y):
+		return false
+	if from_cell == to_cell:
+		return true
+	if not is_valid_cell(from_cell.x, from_cell.y):
+		return true
+	var h0: int = int(elevation_grid[from_cell.x][from_cell.y])
+	var h1: int = int(elevation_grid[to_cell.x][to_cell.y])
+	var diff: int = absi(h1 - h0)
+	if diff == 0:
+		return true
+	if diff == 1:
+		return int(object_grid[from_cell.x][from_cell.y]) == ObjectType.RAMP \
+			or int(object_grid[to_cell.x][to_cell.y]) == ObjectType.RAMP
+	return false
 
 func is_rect_walkable(rect: Rect2) -> bool:
 	var pts: Array[Vector2] = [
@@ -838,13 +874,33 @@ func is_rect_walkable(rect: Rect2) -> bool:
 			return false
 	return true
 
+# 以“起点格 -> 终点格”成对比较来判定碰撞，才能表达坡道的通行方向
+func _rect_step_ok(old_rect: Rect2, new_rect: Rect2) -> bool:
+	var shift: Vector2 = new_rect.position - old_rect.position
+	var pts: Array[Vector2] = [
+		new_rect.position,
+		Vector2(new_rect.end.x, new_rect.position.y),
+		Vector2(new_rect.position.x, new_rect.end.y),
+		new_rect.end
+	]
+	for pt in pts:
+		var to_cell: Vector2i = world_to_grid(pt)
+		var from_cell: Vector2i = world_to_grid(pt - shift)
+		if not can_step_between(from_cell, to_cell):
+			return false
+	return true
+
 func _move_player_with_collision(motion: Vector2) -> void:
-	var next_x := Vector2(player_pos.x + motion.x, player_pos.y)
-	if is_rect_walkable(Rect2(next_x - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)):
-		player_pos.x = next_x.x
-	var next_y := Vector2(player_pos.x, player_pos.y + motion.y)
-	if is_rect_walkable(Rect2(next_y - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)):
-		player_pos.y = next_y.y
+	var old_rect := Rect2(player_pos - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)
+	var try_x := Vector2(player_pos.x + motion.x, player_pos.y)
+	var rect_x := Rect2(try_x - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)
+	if _rect_step_ok(old_rect, rect_x):
+		player_pos.x = try_x.x
+		old_rect = Rect2(player_pos - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)
+	var try_y := Vector2(player_pos.x, player_pos.y + motion.y)
+	var rect_y := Rect2(try_y - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)
+	if _rect_step_ok(old_rect, rect_y):
+		player_pos.y = try_y.y
 
 func get_front_cell() -> Vector2i:
 	var target_pt: Vector2 = player_pos + player_facing.normalized() * float(TILE_SIZE) * 0.95
@@ -1146,6 +1202,12 @@ func is_cell_editable_for_tool(gx: int, gy: int, tool_id: int) -> bool:
 	var obj: int = object_grid[gx][gy]
 	if obj in [ObjectType.HOUSE, ObjectType.VILLAGER_HOUSE, ObjectType.SHOP] and tool_id != BuildTool.MOVE_OBJECT:
 		return false
+	# 水面（elev==0）只能先用【铲平】填土造陆，其它工具一律红框拦截，避免“水上造岛”
+	if int(elevation_grid[gx][gy]) == 0 and tool_id in [
+		BuildTool.ROAD_PAVE, BuildTool.PLANT_PUT, BuildTool.BUILDING_PUT,
+		BuildTool.DECOR_PUT, BuildTool.CLIFF_RAISE, BuildTool.GROUND_GRASS
+	]:
+		return false
 	if tool_id in [BuildTool.RIVER_DIG, BuildTool.CLIFF_RAISE, BuildTool.BUILDING_PUT]:
 		var p_cell: Vector2i = world_to_grid(player_pos)
 		if p_cell.x == gx and p_cell.y == gy:
@@ -1190,9 +1252,10 @@ func _apply_brush_at_cell(center_cell: Vector2i, tool_id: int, stroke_changes: A
 		_handle_move_object_tool(center_cell)
 		return true
 	var any_changed: bool = false
+	var offset: int = -int((build_brush_size - 1) / 2)   # 画笔以手指位置为中心，而不是左上角
 	for dx in range(build_brush_size):
 		for dy in range(build_brush_size):
-			if _apply_build_tool_to_cell(center_cell.x + dx, center_cell.y + dy, tool_id, stroke_changes):
+			if _apply_build_tool_to_cell(center_cell.x + offset + dx, center_cell.y + offset + dy, tool_id, stroke_changes):
 				any_changed = true
 	if any_changed:
 		_spawn_burst_effect(Vector2(center_cell) * TILE_SIZE + Vector2(8, 8), PAL_CREAM)
@@ -1215,38 +1278,34 @@ func _apply_build_tool_to_cell(gx: int, gy: int, tool_id: int, stroke_changes: A
 			new_g = GroundType.GRASS
 			new_e = 1
 		BuildTool.FLATTEN:
-			if new_g in [GroundType.RIVER, GroundType.SHALLOW_WATER, GroundType.TILLED_SOIL]:
+			# 铲平同时承担“填土造陆”：任何水域都会被填成草地，高度回到 1
+			if new_g in [GroundType.RIVER, GroundType.SHALLOW_WATER, GroundType.DEEP_WATER, GroundType.TILLED_SOIL]:
 				new_g = GroundType.GRASS
 			new_e = 1
 			if new_o not in [ObjectType.HOUSE, ObjectType.VILLAGER_HOUSE, ObjectType.SHOP]:
 				new_o = ObjectType.NONE
 		BuildTool.CLIFF_RAISE:
-			new_g = GroundType.GRASS
-			new_e = 2
-			new_o = ObjectType.NONE
+			if build_sub_cliff == 1:
+				# 坡道：不改变地形高度，只在地面放一块连接台阶
+				new_o = ObjectType.RAMP
+			else:
+				new_g = GroundType.GRASS
+				new_e = 2
+				new_o = ObjectType.NONE
 		BuildTool.RIVER_DIG:
 			new_g = GroundType.RIVER
 			new_e = 0
 			new_o = ObjectType.NONE
 		BuildTool.ROAD_PAVE:
+			# 保留原有高度：在高地上铺路不会再被压平成平地
 			new_g = build_sub_road
-			new_e = 1
 			if new_o in [ObjectType.WEED, ObjectType.TREE_OAK, ObjectType.TREE_PINE]:
 				new_o = ObjectType.NONE
 		BuildTool.PLANT_PUT:
-			if new_e == 0:
-				new_g = GroundType.GRASS
-				new_e = 1
 			new_o = build_sub_plant
 		BuildTool.DECOR_PUT:
-			if new_e == 0:
-				new_g = GroundType.GRASS
-				new_e = 1
 			new_o = build_sub_decor
 		BuildTool.BUILDING_PUT:
-			if new_e == 0:
-				new_g = GroundType.GRASS
-				new_e = 1
 			new_o = ObjectType.CONSTRUCTION
 
 	if new_g == old_g and new_e == old_e and new_o == old_o:
@@ -1601,10 +1660,11 @@ func _draw() -> void:
 			draw_rect(box_px, PAL_CREAM, false, 2.0)
 		elif is_valid_cell(build_drag_curr_cell.x, build_drag_curr_cell.y):
 			var span: int = 1 if current_build_tool == BuildTool.MOVE_OBJECT else build_brush_size
+			var pv_off: int = -int((span - 1) / 2)
 			for dx in range(span):
 				for dy in range(span):
-					var tx: int = build_drag_curr_cell.x + dx
-					var ty: int = build_drag_curr_cell.y + dy
+					var tx: int = build_drag_curr_cell.x + pv_off + dx
+					var ty: int = build_drag_curr_cell.y + pv_off + dy
 					if is_valid_cell(tx, ty):
 						var c_rect := Rect2(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE)
 						var ok: bool = is_cell_editable_for_tool(tx, ty, current_build_tool)
@@ -1744,6 +1804,21 @@ func _draw_storybook_object_base(p: Vector2, o_type: int) -> void:
 				draw_rect(Rect2(p.x + sx + 3, p.y - 7, 3, 4), PAL_CORAL, true)
 			draw_rect(Rect2(p.x + 4, p.y + 4, 7, 11), PAL_EARTH, true)
 			draw_rect(Rect2(p.x + 13, p.y + 3, 6, 5), PAL_GOLD, true)
+		ObjectType.RAMP:
+			# 木台阶坡道：四道台阶 + 朝向相邻高地的一侧画一个小亮块作为提示
+			var rgx: int = int(round(p.x / float(TILE_SIZE)))
+			var rgy: int = int(round(p.y / float(TILE_SIZE)))
+			draw_rect(Rect2(p.x + 1, p.y + 1, 14, 14), PAL_EARTH, true)
+			for i in range(4):
+				draw_rect(Rect2(p.x + 2, p.y + 2 + i * 3, 12, 2), PAL_WOOD.lightened(0.06 * float(i)), true)
+			if is_valid_cell(rgx, rgy):
+				var my_h: int = int(elevation_grid[rgx][rgy])
+				for dvec in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+					var nx: int = rgx + dvec.x
+					var ny: int = rgy + dvec.y
+					if is_valid_cell(nx, ny) and int(elevation_grid[nx][ny]) > my_h:
+						draw_rect(Rect2(p.x + 7 + dvec.x * 6 - 1, p.y + 7 + dvec.y * 6 - 1, 3, 3), PAL_CREAM, true)
+						break
 		ObjectType.CONSTRUCTION:
 			draw_rect(Rect2(p.x - 3, p.y - 3, 22, 20), PAL_OUTLINE, true)
 			draw_rect(Rect2(p.x - 2, p.y - 2, 20, 18), PAL_SAND, true)
@@ -2304,6 +2379,13 @@ func _on_cycle_build_subtype() -> void:
 		else:
 			build_sub_road = GroundType.STONE_PATH
 			_show_toast("道路样式切换为：【村庄石板路】")
+	elif current_build_tool == BuildTool.CLIFF_RAISE:
+		if build_sub_cliff == 0:
+			build_sub_cliff = 1
+			_show_toast("高地样式切换为：【木台阶坡道】—— 放在悬崖脚下就能走上高地")
+		else:
+			build_sub_cliff = 0
+			_show_toast("高地样式切换为：【二层悬崖】—— 可作为挡土墙与观景台基座")
 	elif current_build_tool == BuildTool.PLANT_PUT:
 		if build_sub_plant == ObjectType.FLOWER_PINK:
 			build_sub_plant = ObjectType.FLOWER_YELLOW
@@ -2351,7 +2433,11 @@ func _update_build_ui_labels() -> void:
 	match current_build_tool:
 		BuildTool.GROUND_GRASS: tool_desc = "【地形】铺设自然草坪"
 		BuildTool.FLATTEN:      tool_desc = "【铲平】铲平高地/填河/清杂物"
-		BuildTool.CLIFF_RAISE:  tool_desc = "【高地】堆筑二层悬崖"
+		BuildTool.CLIFF_RAISE:
+			if build_sub_cliff == 1:
+				tool_desc = "【坡道】放在悬崖脚下，可徒步上下高地"
+			else:
+				tool_desc = "【高地】堆筑二层悬崖（点“切换子样式”可改为坡道）"
 		BuildTool.RIVER_DIG:    tool_desc = "【水域】挖掘河流与湖泊"
 		BuildTool.ROAD_PAVE:    tool_desc = "【道路】铺设石路/木路/木桥"
 		BuildTool.PLANT_PUT:    tool_desc = "【植物】种植花草/灌木/树木"
@@ -2972,66 +3058,171 @@ func _get_logical_day_key() -> String:
 		int(shifted_dt.get("day", 1))
 	]
 
+func _check_day_rollover() -> void:
+	var k: String = _get_logical_day_key()
+	if cached_day_key == "":
+		cached_day_key = k
+		return
+	if k > cached_day_key:
+		cached_day_key = k
+		var done: int = _finish_all_constructions()
+		if done > 0:
+			_show_toast("新的一天开始了！%d 座建筑已经落成" % done)
+			_save_game()
+
 func _save_game() -> bool:
+	var friendship: Array = []
+	for a in animals:
+		friendship.append(int(a.get("friendship", 1)))
 	var data: Dictionary = {
-		"version": 4,
+		"version": SAVE_VERSION,
 		"saved_unix_time": int(Time.get_unix_time_from_system()),
 		"logical_day_key": _get_logical_day_key(),
 		"coins": coins,
 		"player": {"x": snappedf(player_pos.x, 0.1), "y": snappedf(player_pos.y, 0.1)},
 		"inventory": inventory,
 		"hotbar": hotbar,
+		"selected_hotbar_index": selected_hotbar_index,
+		"friendship": friendship,
+		"settings": {
+			"camera_zoom": setting_camera_zoom,
+			"move_speed_scale": setting_move_speed_scale,
+			"show_grid_in_build": setting_show_grid_in_build
+		},
 		"ground_grid": ground_grid,
 		"elevation_grid": elevation_grid,
 		"object_grid": object_grid
 	}
+	var payload: String = JSON.stringify(data)
 	var file: FileAccess = FileAccess.open(TEMP_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
+		push_warning("[存档] 无法写入临时文件，本次保存失败")
 		return false
-	file.store_string(JSON.stringify(data))
+	file.store_string(payload)
 	file.flush()
 	file.close()
+
+	# 回读校验：写进去的内容必须能被重新解析，且三层网格形状完整，否则不覆盖正式存档
+	var verify: String = FileAccess.get_file_as_string(TEMP_SAVE_PATH)
+	if verify != payload:
+		push_warning("[存档] 回读内容与写入不一致，放弃本次保存")
+		return false
+	var check: Variant = JSON.parse_string(verify)
+	if typeof(check) != TYPE_DICTIONARY:
+		push_warning("[存档] 回读 JSON 解析失败，放弃本次保存")
+		return false
+	var ck: Dictionary = check
+	if not _grid_shape_ok(ck.get("ground_grid", null)) \
+		or not _grid_shape_ok(ck.get("elevation_grid", null)) \
+		or not _grid_shape_ok(ck.get("object_grid", null)):
+		push_warning("[存档] 回读网格形状不合法，放弃本次保存")
+		return false
+
 	var dir: DirAccess = DirAccess.open("user://")
-	if dir != null:
-		dir.rename(TEMP_SAVE_PATH, SAVE_PATH)
+	if dir == null:
+		return false
+	# 正式存档先降级为 .bak，再把临时文件扶正，任何一步失败都回滚到上一次可用存档
+	if dir.file_exists(SAVE_PATH):
+		if dir.file_exists(BAK_SAVE_PATH):
+			dir.remove(BAK_SAVE_PATH)
+		if dir.rename(SAVE_PATH, BAK_SAVE_PATH) != OK:
+			push_warning("[存档] 备份旧存档失败，放弃本次保存")
+			return false
+	if dir.rename(TEMP_SAVE_PATH, SAVE_PATH) != OK:
+		push_warning("[存档] 临时文件转正失败，回滚到旧存档")
+		if dir.file_exists(BAK_SAVE_PATH) and not dir.file_exists(SAVE_PATH):
+			dir.rename(BAK_SAVE_PATH, SAVE_PATH)
+		return false
 	return true
 
-func _load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
+func _grid_shape_ok(grid: Variant) -> bool:
+	if typeof(grid) != TYPE_ARRAY or grid.size() != GRID_WIDTH:
+		return false
+	for x in range(GRID_WIDTH):
+		var col: Variant = grid[x]
+		if typeof(col) != TYPE_ARRAY or col.size() != GRID_HEIGHT:
+			return false
+	return true
+
+func _read_save_file(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return null
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
+		return null
+	var text: String = file.get_as_text()
 	file.close()
+	if text.strip_edges().is_empty():
+		return null
+	return JSON.parse_string(text)
+
+func _finish_all_constructions() -> int:
+	var finished: int = 0
+	for x in range(GRID_WIDTH):
+		for y in range(GRID_HEIGHT):
+			if int(object_grid[x][y]) == ObjectType.CONSTRUCTION:
+				object_grid[x][y] = ObjectType.VILLAGER_HOUSE
+				finished += 1
+	return finished
+
+func _load_game() -> void:
+	# 主存档坏了就退到 .bak，避免一次写坏就永久开不了游戏
+	var parsed: Variant = _read_save_file(SAVE_PATH)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		parsed = _read_save_file(BAK_SAVE_PATH)
+		if typeof(parsed) == TYPE_DICTIONARY:
+			_show_toast("主存档损坏，已自动读取上一次的备份存档")
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 
 	var data: Dictionary = parsed
-	coins = int(data.get("coins", 1800))
-	if data.has("inventory") and typeof(data["inventory"]) == TYPE_DICTIONARY:
-		inventory = data["inventory"]
-	if data.has("hotbar") and typeof(data["hotbar"]) == TYPE_ARRAY and data["hotbar"].size() == 6:
-		hotbar = data["hotbar"]
+	# v4 及更早的存档没有友谊/设置字段：按默认值补齐，不做破坏性迁移
+	coins = maxi(0, int(data.get("coins", 1800)))
 
-	if data.has("ground_grid") and data.has("elevation_grid") and data.has("object_grid"):
+	if data.has("inventory") and typeof(data["inventory"]) == TYPE_DICTIONARY:
+		var inv: Dictionary = data["inventory"]
+		for k in inv.keys():
+			if ITEM_DB.has(str(k)):
+				inventory[str(k)] = maxi(0, int(inv[k]))
+
+	if data.has("hotbar") and typeof(data["hotbar"]) == TYPE_ARRAY and data["hotbar"].size() == 6:
+		var hb: Array = data["hotbar"]
+		for i in range(6):
+			hotbar[i] = str(hb[i])
+
+	if data.has("selected_hotbar_index"):
+		selected_hotbar_index = clampi(int(data["selected_hotbar_index"]), 0, 5)
+
+	if data.has("friendship") and typeof(data["friendship"]) == TYPE_ARRAY:
+		var fs: Array = data["friendship"]
+		for i in range(animals.size()):
+			if i < fs.size():
+				animals[i]["friendship"] = maxi(1, int(fs[i]))
+
+	if data.has("settings") and typeof(data["settings"]) == TYPE_DICTIONARY:
+		var st: Dictionary = data["settings"]
+		setting_camera_zoom = clampf(float(st.get("camera_zoom", 1.0)), 0.7, 2.0)
+		setting_move_speed_scale = clampf(float(st.get("move_speed_scale", 1.0)), 0.6, 1.6)
+		setting_show_grid_in_build = bool(st.get("show_grid_in_build", true))
+
+	if _grid_shape_ok(data.get("ground_grid", null)) \
+		and _grid_shape_ok(data.get("elevation_grid", null)) \
+		and _grid_shape_ok(data.get("object_grid", null)):
 		var gg: Array = data["ground_grid"]
 		var eg: Array = data["elevation_grid"]
 		var og: Array = data["object_grid"]
-		if gg.size() == GRID_WIDTH and eg.size() == GRID_WIDTH and og.size() == GRID_WIDTH:
-			for x in range(GRID_WIDTH):
-				for y in range(GRID_HEIGHT):
-					ground_grid[x][y] = int(gg[x][y])
-					elevation_grid[x][y] = int(eg[x][y])
-					object_grid[x][y] = int(og[x][y])
-
-	var saved_day: String = str(data.get("logical_day_key", ""))
-	var curr_day: String = _get_logical_day_key()
-	if saved_day != "" and curr_day > saved_day:
 		for x in range(GRID_WIDTH):
 			for y in range(GRID_HEIGHT):
-				if int(object_grid[x][y]) == ObjectType.CONSTRUCTION:
-					object_grid[x][y] = ObjectType.VILLAGER_HOUSE
+				# 逐格 clamp，坏档最多表现为局部默认地形，不会数组越界崩溃
+				ground_grid[x][y] = clampi(int(gg[x][y]), 0, GroundType.TILLED_SOIL)
+				elevation_grid[x][y] = clampi(int(eg[x][y]), 0, 2)
+				object_grid[x][y] = clampi(int(og[x][y]), 0, ObjectType.RAMP)
+
+	var saved_day: String = str(data.get("logical_day_key", ""))
+	if saved_day != "" and _get_logical_day_key() > saved_day:
+		var done: int = _finish_all_constructions()
+		if done > 0:
+			_show_toast("施工完成！%d 座新建筑在清晨落成" % done)
 
 	if data.has("player") and typeof(data["player"]) == TYPE_DICTIONARY:
 		var p: Dictionary = data["player"]
@@ -3040,6 +3231,7 @@ func _load_game() -> void:
 		if is_cell_walkable(c.x, c.y):
 			player_pos = saved_pt
 
+	cached_day_key = _get_logical_day_key()
 	_refresh_hotbar_ui()
 	_update_time_and_lighting()
 	queue_redraw()
