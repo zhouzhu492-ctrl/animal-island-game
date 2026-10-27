@@ -736,16 +736,25 @@ func _get_walk_tex(char_id: String) -> Texture2D:
 	var cid: String = char_id if CHAR_WALK_PATHS.has(char_id) else "bear"
 	if _walk_tex_cache.has(cid):
 		return _walk_tex_cache[cid]
-	var path: String = str(CHAR_WALK_PATHS.get(cid, ""))
+	var candidate_paths: Array[String] = [
+		str(CHAR_WALK_PATHS.get(cid, "")),
+		"res://characters/%s_walk.png" % cid,
+		"res://%s_walk.png" % cid
+	]
 	var tex: Texture2D = null
-	if path != "" and ResourceLoader.exists(path):
-		tex = load(path) as Texture2D
-	if tex == null and path != "":
-		var abs_p: String = ProjectSettings.globalize_path(path)
-		if FileAccess.file_exists(abs_p):
-			var img := Image.load_from_file(abs_p)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
+	for p in candidate_paths:
+		if p != "" and ResourceLoader.exists(p):
+			tex = load(p) as Texture2D
+			if tex != null:
+				break
+		if p != "":
+			var abs_p: String = ProjectSettings.globalize_path(p)
+			if FileAccess.file_exists(abs_p):
+				var img := Image.load_from_file(abs_p)
+				if img != null and not img.is_empty():
+					tex = ImageTexture.create_from_image(img)
+					if tex != null:
+						break
 	if tex != null:
 		_walk_tex_cache[cid] = tex
 	return tex
@@ -756,20 +765,195 @@ func _get_portrait_tex(char_id: String, expr: String = "neutral") -> Texture2D:
 	var cache_key: String = "%s_%s" % [cid, ex]
 	if _portrait_tex_cache.has(cache_key):
 		return _portrait_tex_cache[cache_key]
-	var path: String = "res://sprites/portraits/%s_%s.png" % [cid, ex]
+
+	# 依次尝试：标准子目录、根目录、portraits目录（防止手机上传时路径扁平化）
+	var candidate_paths: Array[String] = [
+		"res://sprites/portraits/%s_%s.png" % [cid, ex],
+		"res://portraits/%s_%s.png" % [cid, ex],
+		"res://%s_%s.png" % [cid, ex]
+	]
 	var tex: Texture2D = null
-	if ResourceLoader.exists(path):
-		tex = load(path) as Texture2D
-	if tex == null:
-		var abs_p: String = ProjectSettings.globalize_path(path)
+	for p in candidate_paths:
+		if ResourceLoader.exists(p):
+			tex = load(p) as Texture2D
+			if tex != null:
+				break
+		var abs_p: String = ProjectSettings.globalize_path(p)
 		if FileAccess.file_exists(abs_p):
 			var img := Image.load_from_file(abs_p)
 			if img != null and not img.is_empty():
 				tex = ImageTexture.create_from_image(img)
+				if tex != null:
+					break
+
+	# 若用户手机未上传图片素材：内置程序化全量绘制 8 位动物 × 5 种表情纯正像素立绘，绝不显示纯色方块！
 	if tex == null:
-		tex = _create_fallback_pixel_icon(cid)
+		tex = _create_pixel_art_portrait(cid, ex)
 	_portrait_tex_cache[cache_key] = tex
 	return tex
+
+func _create_pixel_art_portrait(cid: String, ex: String) -> Texture2D:
+	var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+
+	var head_c := Color("#B98761")
+	var ear_c := Color("#8A5B45")
+	var muz_c := Color("#F5DDA1")
+	var outline := Color("#544A44")
+	var blush_c := Color("#EE8398")
+
+	match cid:
+		"cat":
+			head_c = Color("#F5B06C"); ear_c = Color("#D97A3E"); muz_c = Color("#FFF2D6")
+		"rabbit":
+			head_c = Color("#FFF9F5"); ear_c = Color("#EE8398"); muz_c = Color("#FFF2D6")
+		"deer":
+			head_c = Color("#D89B65"); ear_c = Color("#9A633A"); muz_c = Color("#F5DDA1")
+		"fox":
+			head_c = Color("#F08A61"); ear_c = Color("#544A44"); muz_c = Color("#FFF2D6")
+		"frog":
+			head_c = Color("#7BC96F"); ear_c = Color("#499B4A"); muz_c = Color("#A3E699")
+		"otter":
+			head_c = Color("#9A6B4E"); ear_c = Color("#6D4832"); muz_c = Color("#F5DDA1")
+		"bird":
+			head_c = Color("#6EC4E8"); ear_c = Color("#F7D460"); muz_c = Color("#FFF2D6")
+
+	# 1. 绘制耳朵/顶饰
+	if cid == "rabbit":
+		for y in range(2, 13):
+			for x in range(7, 12):
+				var is_edge: bool = (x == 7 or x == 11 or y == 2 or y == 12)
+				img.set_pixel(x, y, outline if is_edge else (ear_c if x == 9 and y >= 4 and y <= 10 else head_c))
+			for x in range(20, 25):
+				var is_edge2: bool = (x == 20 or x == 24 or y == 2 or y == 12)
+				img.set_pixel(x, y, outline if is_edge2 else (ear_c if x == 22 and y >= 4 and y <= 10 else head_c))
+	elif cid in ["cat", "fox"]:
+		for y in range(4, 12):
+			for x in range(6, 13):
+				if x + y >= 14 and x - y <= 4:
+					var is_e: bool = (x == 6 or x == 12 or y == 4 or x + y == 14 or x - y == 4)
+					img.set_pixel(x, y, outline if is_e else (ear_c if cid == "fox" else head_c))
+			for x in range(19, 26):
+				if x - y >= 13 and x + y <= 33:
+					var is_e2: bool = (x == 19 or x == 25 or y == 4 or x - y == 13 or x + y == 33)
+					img.set_pixel(x, y, outline if is_e2 else (ear_c if cid == "fox" else head_c))
+	elif cid == "frog":
+		for y in range(4, 12):
+			for x in range(6, 14):
+				var dx: float = float(x) - 9.5
+				var dy: float = float(y) - 7.5
+				if dx * dx + dy * dy <= 12.0:
+					var is_bo: bool = (dx * dx + dy * dy >= 7.5)
+					img.set_pixel(x, y, outline if is_bo else head_c)
+			for x in range(18, 26):
+				var dx2: float = float(x) - 21.5
+				var dy2: float = float(y) - 7.5
+				if dx2 * dx2 + dy2 * dy2 <= 12.0:
+					var is_bo2: bool = (dx2 * dx2 + dy2 * dy2 >= 7.5)
+					img.set_pixel(x, y, outline if is_bo2 else head_c)
+	else:
+		for y in range(5, 12):
+			for x in range(5, 12):
+				var de: float = float(x - 8) * float(x - 8) + float(y - 8) * float(y - 8)
+				if de <= 10.0:
+					img.set_pixel(x, y, outline if de >= 6.5 else ear_c)
+			for x in range(20, 27):
+				var de2: float = float(x - 23) * float(x - 23) + float(y - 8) * float(y - 8)
+				if de2 <= 10.0:
+					img.set_pixel(x, y, outline if de2 >= 6.5 else ear_c)
+
+	# 2. 绘制圆润头部外轮廓与面部底色
+	for y in range(9, 29):
+		for x in range(5, 27):
+			var at_corner: bool = (x in [5, 26] and y in [9, 28])
+			if at_corner:
+				continue
+			var is_border: bool = (x in [5, 26] or y in [9, 28] or (x in [6, 25] and y in [9, 28]))
+			img.set_pixel(x, y, outline if is_border else head_c)
+
+	# 3. 绘制口鼻区域 (Muzzle)
+	for y in range(18, 26):
+		for x in range(11, 21):
+			img.set_pixel(x, y, muz_c)
+
+	# 4. 鼻子/鸟喙
+	if cid == "bird":
+		for bx in [14, 15, 16, 17]:
+			img.set_pixel(bx, 18, Color("#F7D460"))
+		img.set_pixel(15, 19, Color("#F7D460"))
+		img.set_pixel(16, 19, Color("#F7D460"))
+		img.set_pixel(15, 20, Color("#D97A3E"))
+	else:
+		img.set_pixel(15, 18, outline)
+		img.set_pixel(16, 18, outline)
+		img.set_pixel(15, 19, outline)
+		img.set_pixel(16, 19, outline)
+
+	# 5. 表情系统（眼睛、嘴部、腮红与细节）
+	if ex in ["happy", "shy"]:
+		# 笑眯眯的弯月眼 ^^
+		for ex_off in [9, 18]:
+			img.set_pixel(ex_off, 15, outline)
+			img.set_pixel(ex_off + 1, 14, outline)
+			img.set_pixel(ex_off + 2, 14, outline)
+			img.set_pixel(ex_off + 3, 15, outline)
+		# 粉嫩腮红
+		for bx in range(7, 10):
+			img.set_pixel(bx, 20, blush_c)
+			img.set_pixel(bx, 21, blush_c)
+		for bx in range(22, 25):
+			img.set_pixel(bx, 20, blush_c)
+			img.set_pixel(bx, 21, blush_c)
+		# 开心露齿微笑
+		for mx in [14, 17]: img.set_pixel(mx, 21, outline)
+		for mx in [15, 16]:
+			img.set_pixel(mx, 22, outline)
+			img.set_pixel(mx, 21, Color.WHITE)
+	elif ex == "surprised":
+		# 惊讶的大圆眼睛与高光
+		for ex_off in [9, 18]:
+			for y in range(13, 17):
+				for x in range(ex_off, ex_off + 4):
+					var is_eb: bool = (x in [ex_off, ex_off + 3] or y in [13, 16])
+					img.set_pixel(x, y, outline if is_eb else Color.WHITE)
+			img.set_pixel(ex_off + 1, 14, outline)
+		# 惊讶小圆嘴 "o"
+		img.set_pixel(15, 21, outline)
+		img.set_pixel(16, 21, outline)
+		img.set_pixel(15, 23, outline)
+		img.set_pixel(16, 23, outline)
+		img.set_pixel(14, 22, outline)
+		img.set_pixel(17, 22, outline)
+		img.set_pixel(15, 22, Color("#EE8398"))
+		img.set_pixel(16, 22, Color("#EE8398"))
+	elif ex == "sleepy":
+		# 困倦闭眼水平线 --
+		for ex_off in [9, 18]:
+			for x in range(ex_off, ex_off + 4):
+				img.set_pixel(x, 15, outline)
+		# 微小呼噜嘴
+		img.set_pixel(15, 22, outline)
+		img.set_pixel(16, 22, outline)
+		# 额角呼噜 "Z"
+		for zx in range(23, 27): img.set_pixel(zx, 8, outline)
+		img.set_pixel(25, 9, outline)
+		img.set_pixel(24, 10, outline)
+		for zx in range(23, 27): img.set_pixel(zx, 11, outline)
+	else: # neutral (普通日常温和眼神)
+		for ex_off in [10, 19]:
+			for y in range(13, 17):
+				for x in range(ex_off, ex_off + 3):
+					img.set_pixel(x, y, outline)
+			# 灵动白色高光
+			img.set_pixel(ex_off, 13, Color.WHITE)
+			img.set_pixel(ex_off + 1, 14, Color.WHITE)
+		# 温和浅浅微笑
+		img.set_pixel(14, 21, outline)
+		img.set_pixel(15, 22, outline)
+		img.set_pixel(16, 22, outline)
+		img.set_pixel(17, 21, outline)
+
+	return ImageTexture.create_from_image(img)
 
 func _get_icon_tex(key: String) -> Texture2D:
 	if _icon_cache.has(key):
