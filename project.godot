@@ -3,7 +3,7 @@ config_version=5
 
 [application]
 
-config/name="像素动物岛物语"
+config/name="小岛日记"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 
