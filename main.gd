@@ -30,7 +30,7 @@ const TILE_SIZE: int = 16
 const SAVE_PATH: String = "user://little_island_diary_save_v2.json"
 const TEMP_SAVE_PATH: String = "user://little_island_diary_save_v2.tmp"
 const BAK_SAVE_PATH: String = "user://little_island_diary_save_v2.bak"
-const SAVE_VERSION: int = 9
+const SAVE_VERSION: int = 10
 
 # --- 《小岛日记》V1.0 核心锁定色板 ---
 const PAL_CREAM      := Color("#FFF2D6")
@@ -127,7 +127,18 @@ const ICON_PATHS: Dictionary = {
 	"shell_rack":     "res://sprites/furniture/shell_rack.png",
 	"sports_gear":    "res://sprites/furniture/sports_gear.png",
 	"map_wall":       "res://sprites/furniture/map_wall.png",
-	"stove_counter":  "res://sprites/furniture/stove_counter.png"
+	"stove_counter":  "res://sprites/furniture/stove_counter.png",
+	"stairs_up":      "res://sprites/furniture/stairs_up.png",
+	"stairs_down":    "res://sprites/furniture/stairs_down.png",
+	"double_bed":     "res://sprites/furniture/double_bed.png",
+	"fridge":         "res://sprites/furniture/fridge.png",
+	"fish_tank":      "res://sprites/furniture/fish_tank.png",
+	"clock":          "res://sprites/furniture/clock.png",
+	"trash_can":      "res://sprites/furniture/trash_can.png",
+	"telescope":      "res://sprites/furniture/telescope.png",
+	"easel":          "res://sprites/furniture/easel.png",
+	"piano":          "res://sprites/furniture/piano.png",
+	"counter_desk":   "res://sprites/furniture/counter_desk.png"
 }
 
 const CHAR_WALK_PATHS: Dictionary = {
@@ -142,13 +153,15 @@ const CHAR_WALK_PATHS: Dictionary = {
 	"bird":   "res://sprites/characters/bird_walk.png"
 }
 
-const PORTRAIT_EXPRS: Array = ["neutral", "happy", "surprised", "sleepy", "shy"]
+const PORTRAIT_EXPRS: Array = ["neutral", "happy", "surprised", "sleepy", "shy", "angry", "confused"]
 const EXPR_CN_NAMES: Dictionary = {
 	"neutral": "普通",
 	"happy": "开心",
 	"surprised": "惊讶",
 	"sleepy": "困倦",
-	"shy": "害羞"
+	"shy": "害羞",
+	"angry": "生气",
+	"confused": "疑惑"
 }
 
 var _icon_cache: Dictionary = {}
@@ -552,7 +565,15 @@ const ITEM_DB: Dictionary = {
 	"storage_item":   {"name": "储物木箱",   "icon_key": "storage_box",   "type": "placeable", "obj_id": ObjectType.STORAGE_BOX,   "indoor_type": "storage_box",   "walkable": false, "price": 160, "desc": "带铜扣的木质储物箱，可随时整理随身物品"},
 	"rug_item":       {"name": "织花地毯",   "icon_key": "rug",           "type": "placeable", "obj_id": ObjectType.RUG,           "indoor_type": "rug",           "walkable": true,  "price": 140, "desc": "温暖的编织地毯，铺在地面后角色依然可以在上面自由行走"},
 	"record_item":    {"name": "复古留声机", "icon_key": "record_player", "type": "placeable", "obj_id": ObjectType.RECORD_PLAYER, "indoor_type": "record_player", "walkable": false, "price": 360, "desc": "缓缓流淌海岛轻音乐的留声机，互动可获得轻快步伐加成"},
-	"display_item":   {"name": "收藏展示柜", "icon_key": "display_case",  "type": "placeable", "obj_id": ObjectType.DISPLAY_CASE,  "indoor_type": "display_case",  "walkable": false, "price": 340, "desc": "玻璃木框收藏柜，可展示海岛稀有纪念物"}
+	"display_item":   {"name": "收藏展示柜", "icon_key": "display_case",  "type": "placeable", "obj_id": ObjectType.DISPLAY_CASE,  "indoor_type": "display_case",  "walkable": false, "price": 340, "desc": "玻璃木框收藏柜，可展示海岛稀有纪念物"},
+	"double_bed_item": {"name": "豪华双人床", "icon_key": "double_bed",   "type": "placeable", "obj_id": ObjectType.BED,           "indoor_type": "double_bed",    "walkable": false, "price": 480, "desc": "宽大柔软的双人木床，带蓬松枕头与暖色绒毯"},
+	"fridge_item":     {"name": "双门电冰箱", "icon_key": "fridge",       "type": "placeable", "obj_id": ObjectType.STORAGE_BOX,   "indoor_type": "fridge",        "walkable": false, "price": 380, "desc": "薄荷绿保鲜冰箱，可安全冷藏存放各类水果蔬菜与鱼获"},
+	"fish_tank_item":  {"name": "海岛观赏鱼缸","icon_key": "fish_tank",   "type": "placeable", "obj_id": ObjectType.DISPLAY_CASE,  "indoor_type": "fish_tank",     "walkable": false, "price": 360, "desc": "带水草与滤水器的大玻璃鱼缸，可将钓到的鱼放入展示游动"},
+	"clock_item":      {"name": "摆锤机械挂钟","icon_key": "clock",       "type": "placeable", "obj_id": ObjectType.LAMP,          "indoor_type": "clock",         "walkable": false, "price": 180, "desc": "复古金摆锤挂钟，互动可查看精准海岛时间、节气与今日运势"},
+	"trash_can_item":  {"name": "脚踏垃圾桶", "icon_key": "trash_can",   "type": "placeable", "obj_id": ObjectType.STORAGE_BOX,   "indoor_type": "trash_can",     "walkable": false, "price": 80,  "desc": "清理杂物的实用脚踏桶，可安全丢弃背包中不需要的物品"},
+	"telescope_item":  {"name": "黄铜观星镜", "icon_key": "telescope",   "type": "placeable", "obj_id": ObjectType.LAMP,          "indoor_type": "telescope",     "walkable": false, "price": 420, "desc": "三脚架黄铜天文望远镜，可观测夜空星座与明日海岛天气预报"},
+	"easel_item":      {"name": "海岛写生画架","icon_key": "easel",       "type": "placeable", "obj_id": ObjectType.DISPLAY_CASE,  "indoor_type": "easel",         "walkable": false, "price": 240, "desc": "摆着画板与调色盘的木画架，互动可作画记录岛屿风光"},
+	"piano_item":      {"name": "原木立式钢琴","icon_key": "piano",       "type": "placeable", "obj_id": ObjectType.RECORD_PLAYER, "indoor_type": "piano",         "walkable": false, "price": 680, "desc": "音色温润的立式原木钢琴，互动可演奏欢快的小岛旋律"}
 }
 
 var inventory: Dictionary = {}
@@ -939,6 +960,46 @@ func _create_pixel_art_portrait(cid: String, ex: String) -> Texture2D:
 		img.set_pixel(25, 9, outline)
 		img.set_pixel(24, 10, outline)
 		for zx in range(23, 27): img.set_pixel(zx, 11, outline)
+	elif ex == "angry":
+		# 生气皱眉与圆瞪怒目 \ /
+		for x in range(8, 13):
+			img.set_pixel(x, 12 + int((x - 8) * 0.5), outline)
+		for x in range(18, 23):
+			img.set_pixel(x, 14 - int((x - 18) * 0.5), outline)
+		for ex_off in [10, 19]:
+			for y in range(14, 18):
+				for x in range(ex_off, ex_off + 3):
+					img.set_pixel(x, y, outline)
+		# 紧咬的嘟嘴
+		for mx in range(14, 18):
+			img.set_pixel(mx, 23, outline)
+		img.set_pixel(13, 24, outline)
+		img.set_pixel(18, 24, outline)
+		# 额角怒气符号井字
+		img.set_pixel(23, 11, Color("#EE8398"))
+		img.set_pixel(24, 10, Color("#EE8398"))
+		img.set_pixel(25, 11, Color("#EE8398"))
+	elif ex == "confused":
+		# 疑惑高低眉与不平视线
+		for x in range(9, 13): img.set_pixel(x, 13, outline)
+		for x in range(19, 23): img.set_pixel(x, 11, outline)
+		for y in range(14, 17):
+			for x in range(10, 13): img.set_pixel(x, y, outline)
+		for y in range(13, 17):
+			for x in range(19, 23): img.set_pixel(x, y, outline)
+		img.set_pixel(10, 14, Color.WHITE)
+		img.set_pixel(20, 14, Color.WHITE)
+		# 歪头撇嘴
+		img.set_pixel(14, 22, outline)
+		img.set_pixel(15, 23, outline)
+		img.set_pixel(16, 23, outline)
+		img.set_pixel(17, 23, outline)
+		# 头顶金色小问号 "?"
+		img.set_pixel(24, 4, Color("#F7D460"))
+		img.set_pixel(25, 4, Color("#F7D460"))
+		img.set_pixel(26, 5, Color("#F7D460"))
+		img.set_pixel(25, 6, Color("#F7D460"))
+		img.set_pixel(25, 8, Color("#F7D460"))
 	else: # neutral (普通日常温和眼神)
 		for ex_off in [10, 19]:
 			for y in range(13, 17):
@@ -2687,10 +2748,28 @@ const ROOM_H: int = 10
 
 var in_interior: bool = false
 var current_room_id: String = ""
+var player_floor: int = 1
 var outdoor_pos: Vector2 = Vector2.ZERO
 var outdoor_facing: Vector2 = Vector2.DOWN
 var indoor_rooms: Dictionary = {}
 var indoor_edit_mode: bool = false
+var is_player_sitting: bool = false
+var sitting_furniture_pos: Vector2 = Vector2.ZERO
+var storage_box_items: Dictionary = {}
+var fridge_items: Dictionary = {}
+var player_shirt_idx: int = 0
+var player_hat_idx: int = 0
+const SHIRT_COLORS: Array[Color] = [Color("#379CC9"), Color("#EE8398"), Color("#39815D"), Color("#F7D460"), Color("#A288E3"), Color("#FFF2D6")]
+const SHIRT_NAMES: Array[String] = ["海洋天蓝", "珊瑚粉樱", "静谧森林", "暖阳明黄", "薰衣草紫", "清爽纯白"]
+const HAT_NAMES: Array[String] = ["探险草帽", "红色贝雷帽", "海岛花环", "不戴帽子"]
+
+# 语言 AI 适配层（离线高品质本地人格库 + 可选云端自定义代理）
+var ai_enabled: bool = false
+var ai_api_url: String = "https://api.openai.com/v1"
+var ai_api_key: String = ""
+var ai_model_name: String = "gpt-4o-mini"
+var ai_request_in_progress: bool = false
+var _ai_dialog_cache: Dictionary = {}
 var indoor_preview_cell: Vector2i = Vector2i(-1, -1)
 var indoor_moving_item: Dictionary = {}
 var indoor_hud_bar: Panel = null
@@ -2700,29 +2779,40 @@ var indoor_store_btn: Button = null
 var indoor_exit_btn: Button = null
 
 const INDOOR_FURNITURE_META: Dictionary = {
-	"bed":           {"name": "温暖木床",   "icon": "bed",           "walkable": false, "item_id": "bed_item",       "act": "sleep",   "btn": "休息"},
-	"sofa":          {"name": "暖心沙发",   "icon": "sofa",          "walkable": false, "item_id": "sofa_item",      "act": "sit",     "btn": "小憩"},
-	"table":         {"name": "原木书桌",   "icon": "table",         "walkable": false, "item_id": "table_item",     "act": "work",    "btn": "工作"},
-	"chair":         {"name": "木靠背椅",   "icon": "chair",         "walkable": false, "item_id": "chair_item",     "act": "sit",     "btn": "落座"},
-	"bookshelf":     {"name": "满载书架",   "icon": "bookshelf",     "walkable": false, "item_id": "bookshelf_item", "act": "read",    "btn": "阅读"},
-	"lamp":          {"name": "温馨台灯",   "icon": "lamp",          "walkable": false, "item_id": "lamp_item",      "act": "lamp",    "btn": "台灯"},
-	"rug":           {"name": "织花地毯",   "icon": "rug",           "walkable": true,  "item_id": "rug_item",       "act": "",        "btn": "互动"},
-	"wardrobe":      {"name": "双门衣柜",   "icon": "wardrobe",      "walkable": false, "item_id": "wardrobe_item",  "act": "storage", "btn": "储物"},
-	"storage_box":   {"name": "储物木箱",   "icon": "storage_box",   "walkable": false, "item_id": "storage_item",   "act": "storage", "btn": "储物"},
-	"record_player": {"name": "复古留声机", "icon": "record_player", "walkable": false, "item_id": "record_item",    "act": "music",   "btn": "听歌"},
-	"display_case":  {"name": "收藏展示柜", "icon": "display_case",  "walkable": false, "item_id": "display_item",   "act": "display", "btn": "观赏"},
-	"seed_rack":     {"name": "花艺种子架", "icon": "seed_rack",     "walkable": false, "item_id": "potted_plant",   "act": "seeds",   "btn": "花架"},
-	"shell_rack":    {"name": "海洋贝壳架", "icon": "shell_rack",    "walkable": false, "item_id": "shell",          "act": "shells",  "btn": "贝壳"},
-	"sports_gear":   {"name": "运动器材架", "icon": "sports_gear",   "walkable": false, "item_id": "bench_item",     "act": "sports",  "btn": "锻炼"},
-	"map_wall":      {"name": "航海探索图", "icon": "map_wall",      "walkable": false, "item_id": "display_item",   "act": "map",     "btn": "看图"},
-	"stove_counter": {"name": "暖香料理台", "icon": "stove_counter", "walkable": false, "item_id": "table_item",     "act": "eat",     "btn": "品尝"},
-	"potted_plant":  {"name": "精致盆栽",   "icon": "potted_plant",  "walkable": false, "item_id": "potted_plant",   "act": "plant",   "btn": "赏花"}
+	"bed":           {"name": "温暖木床",   "icon": "bed",           "walkable": false, "item_id": "bed_item",       "act": "sleep",         "btn": "休息"},
+	"double_bed":    {"name": "豪华双人床", "icon": "double_bed",    "walkable": false, "item_id": "double_bed_item","act": "sleep",         "btn": "就寝"},
+	"sofa":          {"name": "暖心沙发",   "icon": "sofa",          "walkable": false, "item_id": "sofa_item",      "act": "sit",           "btn": "小憩"},
+	"chair":         {"name": "木靠背椅",   "icon": "chair",         "walkable": false, "item_id": "chair_item",     "act": "sit",           "btn": "落座"},
+	"table":         {"name": "原木书桌",   "icon": "table",         "walkable": false, "item_id": "table_item",     "act": "work",          "btn": "工作"},
+	"bookshelf":     {"name": "满载书架",   "icon": "bookshelf",     "walkable": false, "item_id": "bookshelf_item", "act": "read",          "btn": "阅读"},
+	"lamp":          {"name": "温馨台灯",   "icon": "lamp",          "walkable": false, "item_id": "lamp_item",      "act": "lamp",          "btn": "开关"},
+	"rug":           {"name": "织花地毯",   "icon": "rug",           "walkable": true,  "item_id": "rug_item",       "act": "",              "btn": "互动"},
+	"wardrobe":      {"name": "双门衣柜",   "icon": "wardrobe",      "walkable": false, "item_id": "wardrobe_item",  "act": "wardrobe",      "btn": "衣柜"},
+	"storage_box":   {"name": "储物木箱",   "icon": "storage_box",   "walkable": false, "item_id": "storage_item",   "act": "storage",       "btn": "存取"},
+	"fridge":        {"name": "双门电冰箱", "icon": "fridge",        "walkable": false, "item_id": "fridge_item",    "act": "fridge",        "btn": "冰箱"},
+	"fish_tank":     {"name": "海岛观赏鱼缸","icon": "fish_tank",    "walkable": false, "item_id": "fish_tank_item", "act": "fish_tank",     "btn": "鱼缸"},
+	"clock":         {"name": "摆锤机械挂钟","icon": "clock",        "walkable": false, "item_id": "clock_item",     "act": "clock",         "btn": "时钟"},
+	"trash_can":     {"name": "脚踏垃圾桶", "icon": "trash_can",     "walkable": false, "item_id": "trash_can_item", "act": "trash_can",     "btn": "丢弃"},
+	"record_player": {"name": "复古留声机", "icon": "record_player", "walkable": false, "item_id": "record_item",    "act": "music",         "btn": "点歌"},
+	"telescope":     {"name": "黄铜观星镜", "icon": "telescope",     "walkable": false, "item_id": "telescope_item", "act": "telescope",     "btn": "观星"},
+	"easel":         {"name": "写生画架",   "icon": "easel",         "walkable": false, "item_id": "easel_item",     "act": "easel",         "btn": "作画"},
+	"piano":         {"name": "原木立式钢琴","icon": "piano",         "walkable": false, "item_id": "piano_item",     "act": "piano",         "btn": "弹琴"},
+	"counter_desk":  {"name": "设施服务台", "icon": "counter_desk",  "walkable": false, "item_id": "table_item",     "act": "counter",       "btn": "问询"},
+	"display_case":  {"name": "收藏展示柜", "icon": "display_case",  "walkable": false, "item_id": "display_item",   "act": "display",       "btn": "观赏"},
+	"seed_rack":     {"name": "花艺种子架", "icon": "seed_rack",     "walkable": false, "item_id": "potted_plant",   "act": "seeds",         "btn": "花架"},
+	"shell_rack":    {"name": "海洋贝壳架", "icon": "shell_rack",    "walkable": false, "item_id": "shell",          "act": "shells",        "btn": "贝壳"},
+	"sports_gear":   {"name": "运动器材架", "icon": "sports_gear",   "walkable": false, "item_id": "bench_item",     "act": "sports",        "btn": "锻炼"},
+	"map_wall":      {"name": "航海探索图", "icon": "map_wall",      "walkable": false, "item_id": "display_item",   "act": "map",           "btn": "看图"},
+	"stove_counter": {"name": "暖香料理台", "icon": "stove_counter", "walkable": false, "item_id": "table_item",     "act": "eat",           "btn": "品尝"},
+	"potted_plant":  {"name": "精致盆栽",   "icon": "potted_plant",  "walkable": false, "item_id": "potted_plant",   "act": "plant",         "btn": "赏花"},
+	"stairs_up":     {"name": "阁楼木楼梯", "icon": "stairs_up",     "walkable": false, "item_id": "",               "act": "stairs_up",     "btn": "上楼"},
+	"stairs_down":   {"name": "下楼木楼梯", "icon": "stairs_down",   "walkable": false, "item_id": "",               "act": "stairs_down",   "btn": "下楼"}
 }
 
 func _init_indoor_rooms() -> void:
 	indoor_rooms = {
 		"player": {
-			"name": "我的温馨小屋（休息区·储物区·工作区·自由装修区）",
+			"name": "我的温馨小屋·一楼大厅（生活·储物·工作·上楼）",
 			"floor_col": Color("#F7EBD4"),
 			"floor_alt": Color("#EFE0C4"),
 			"wall_col": Color("#D9C3A3"),
@@ -2730,20 +2820,50 @@ func _init_indoor_rooms() -> void:
 			"furniture": [
 				# 休息区 (左上)
 				{"x": 2, "y": 2, "type": "bed"},
-				{"x": 3, "y": 2, "type": "lamp"},
+				{"x": 3, "y": 2, "type": "lamp", "lamp_on": true},
 				{"x": 2, "y": 3, "type": "rug"},
 				{"x": 3, "y": 3, "type": "rug"},
-				# 储物区 (右上)
+				# 储物与厨膳区 (右上)
+				{"x": 7, "y": 1, "type": "fridge"},
 				{"x": 8, "y": 1, "type": "wardrobe"},
 				{"x": 9, "y": 1, "type": "storage_box"},
-				# 工作区 (左下)
+				# 通往二楼阁楼木楼梯 (右上侧，位置清晰可通行)
+				{"x": 10, "y": 2, "type": "stairs_up"},
+				# 工作与生活区 (左下)
 				{"x": 2, "y": 6, "type": "table"},
 				{"x": 3, "y": 6, "type": "chair"},
 				{"x": 1, "y": 5, "type": "bookshelf"},
-				# 自由装修区 (右侧与中庭留白，带少量初始点缀)
-				{"x": 9, "y": 5, "type": "potted_plant"},
+				{"x": 1, "y": 2, "type": "trash_can"},
+				# 自由装修与观赏区
+				{"x": 9, "y": 5, "type": "fish_tank"},
 				{"x": 5, "y": 5, "type": "rug"},
 				{"x": 6, "y": 5, "type": "rug"}
+			]
+		},
+		"player_2f": {
+			"name": "我的温馨小屋·二楼阁楼（星空天窗·观星·艺术工作室）",
+			"floor_col": Color("#EFE2CF"),
+			"floor_alt": Color("#E4D4BE"),
+			"wall_col": Color("#8A5B45"),
+			"trim_col": Color("#544A44"),
+			"furniture": [
+				# 通往一楼楼梯口
+				{"x": 10, "y": 2, "type": "stairs_down"},
+				# 阁楼大双人床
+				{"x": 2, "y": 2, "type": "double_bed"},
+				# 星空天窗观星镜
+				{"x": 6, "y": 2, "type": "telescope"},
+				# 音乐与艺术角
+				{"x": 3, "y": 1, "type": "piano"},
+				{"x": 2, "y": 6, "type": "easel"},
+				# 阁楼挂钟与储物
+				{"x": 8, "y": 1, "type": "clock"},
+				{"x": 9, "y": 6, "type": "storage_box"},
+				# 书写角
+				{"x": 7, "y": 5, "type": "table"},
+				{"x": 8, "y": 5, "type": "chair"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"}
 			]
 		},
 		"bear": {
@@ -2900,6 +3020,140 @@ func _init_indoor_rooms() -> void:
 				{"x": 2, "y": 6, "type": "bed"},
 				{"x": 9, "y": 6, "type": "potted_plant"}
 			]
+		},
+		"library": {
+			"name": "海岛公共图书馆（全岛书库·安静自修）",
+			"floor_col": Color("#EFE6D5"),
+			"floor_alt": Color("#E4D9C4"),
+			"wall_col": Color("#379CC9"),
+			"trim_col": Color("#205A75"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "bookshelf"},
+				{"x": 3, "y": 1, "type": "bookshelf"},
+				{"x": 4, "y": 1, "type": "bookshelf"},
+				{"x": 7, "y": 1, "type": "bookshelf"},
+				{"x": 8, "y": 1, "type": "bookshelf"},
+				{"x": 9, "y": 1, "type": "clock"},
+				{"x": 2, "y": 4, "type": "counter_desk"},
+				{"x": 5, "y": 4, "type": "table"},
+				{"x": 6, "y": 4, "type": "chair"},
+				{"x": 8, "y": 4, "type": "table"},
+				{"x": 9, "y": 4, "type": "chair"},
+				{"x": 5, "y": 6, "type": "rug"},
+				{"x": 6, "y": 6, "type": "rug"},
+				{"x": 2, "y": 7, "type": "sofa"}
+			]
+		},
+		"canteen": {
+			"name": "海岛阳光食堂（热汤便当·临海餐座）",
+			"floor_col": Color("#FDF4E7"),
+			"floor_alt": Color("#F4E7D4"),
+			"wall_col": Color("#F08A61"),
+			"trim_col": Color("#8A5B45"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "stove_counter"},
+				{"x": 3, "y": 1, "type": "stove_counter"},
+				{"x": 4, "y": 1, "type": "fridge"},
+				{"x": 7, "y": 1, "type": "counter_desk"},
+				{"x": 8, "y": 1, "type": "clock"},
+				{"x": 2, "y": 4, "type": "table"},
+				{"x": 3, "y": 4, "type": "chair"},
+				{"x": 6, "y": 4, "type": "table"},
+				{"x": 7, "y": 4, "type": "chair"},
+				{"x": 9, "y": 5, "type": "trash_can"},
+				{"x": 5, "y": 5, "type": "rug"},
+				{"x": 6, "y": 5, "type": "rug"},
+				{"x": 2, "y": 7, "type": "sofa"}
+			]
+		},
+		"shop": {
+			"name": "海岛杂货铺（特产货架·杂货商台）",
+			"floor_col": Color("#F4EDE1"),
+			"floor_alt": Color("#E9E0D1"),
+			"wall_col": Color("#379CC9"),
+			"trim_col": Color("#8A5B45"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "display_case"},
+				{"x": 3, "y": 1, "type": "display_case"},
+				{"x": 7, "y": 1, "type": "storage_box"},
+				{"x": 8, "y": 1, "type": "storage_box"},
+				{"x": 2, "y": 4, "type": "counter_desk"},
+				{"x": 6, "y": 4, "type": "table"},
+				{"x": 7, "y": 4, "type": "chair"},
+				{"x": 9, "y": 4, "type": "potted_plant"},
+				{"x": 5, "y": 5, "type": "rug"},
+				{"x": 6, "y": 5, "type": "rug"}
+			]
+		},
+		"furniture_shop": {
+			"name": "海岛家具店展厅（样板陈设·室内选购）",
+			"floor_col": Color("#F6EFE3"),
+			"floor_alt": Color("#ECE2D2"),
+			"wall_col": Color("#8A5B45"),
+			"trim_col": Color("#544A44"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "piano"},
+				{"x": 4, "y": 1, "type": "double_bed"},
+				{"x": 7, "y": 1, "type": "wardrobe"},
+				{"x": 8, "y": 1, "type": "counter_desk"},
+				{"x": 2, "y": 5, "type": "sofa"},
+				{"x": 3, "y": 5, "type": "lamp"},
+				{"x": 5, "y": 4, "type": "easel"},
+				{"x": 8, "y": 5, "type": "table"},
+				{"x": 9, "y": 5, "type": "chair"}
+			]
+		},
+		"seed_shop": {
+			"name": "海岛温室花坊（花艺育苗·种子选购）",
+			"floor_col": Color("#EBF6EC"),
+			"floor_alt": Color("#DDF0DE"),
+			"wall_col": Color("#39815D"),
+			"trim_col": Color("#22553B"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "seed_rack"},
+				{"x": 3, "y": 1, "type": "seed_rack"},
+				{"x": 4, "y": 1, "type": "potted_plant"},
+				{"x": 7, "y": 1, "type": "counter_desk"},
+				{"x": 8, "y": 1, "type": "potted_plant"},
+				{"x": 2, "y": 4, "type": "table"},
+				{"x": 3, "y": 4, "type": "chair"},
+				{"x": 7, "y": 4, "type": "potted_plant"},
+				{"x": 8, "y": 4, "type": "seed_rack"}
+			]
+		},
+		"sports": {
+			"name": "海岛体育馆与运动中心（器械体能·健身更衣）",
+			"floor_col": Color("#EAF6EE"),
+			"floor_alt": Color("#DBEFE1"),
+			"wall_col": Color("#8CCB74"),
+			"trim_col": Color("#39735B"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "sports_gear"},
+				{"x": 3, "y": 1, "type": "sports_gear"},
+				{"x": 4, "y": 1, "type": "clock"},
+				{"x": 7, "y": 1, "type": "storage_box"},
+				{"x": 8, "y": 1, "type": "storage_box"},
+				{"x": 2, "y": 4, "type": "chair"},
+				{"x": 3, "y": 4, "type": "chair"},
+				{"x": 7, "y": 4, "type": "sofa"},
+				{"x": 8, "y": 4, "type": "sofa"}
+			]
+		},
+		"workshop": {
+			"name": "海岛工坊与修造工作室（工具台架·材料储运）",
+			"floor_col": Color("#EFE5D7"),
+			"floor_alt": Color("#E5D7C5"),
+			"wall_col": Color("#8A5B45"),
+			"trim_col": Color("#544A44"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "map_wall"},
+				{"x": 3, "y": 1, "type": "table"},
+				{"x": 4, "y": 1, "type": "chair"},
+				{"x": 7, "y": 1, "type": "storage_box"},
+				{"x": 8, "y": 1, "type": "storage_box"},
+				{"x": 2, "y": 4, "type": "easel"},
+				{"x": 7, "y": 4, "type": "trash_can"}
+			]
 		}
 	}
 
@@ -2988,7 +3242,7 @@ func _exit_house() -> void:
 	if not in_interior:
 		return
 	if not indoor_moving_item.is_empty() and current_room_id == "player":
-		indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+		indoor_rooms[current_room_id]["furniture"].append(indoor_moving_item)
 		indoor_moving_item = {}
 	in_interior = false
 	indoor_edit_mode = false
@@ -3015,7 +3269,7 @@ func _toggle_indoor_edit_mode() -> void:
 		return
 	indoor_edit_mode = not indoor_edit_mode
 	if not indoor_edit_mode and not indoor_moving_item.is_empty():
-		indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+		indoor_rooms[current_room_id]["furniture"].append(indoor_moving_item)
 		indoor_moving_item = {}
 	indoor_preview_cell = get_front_cell()
 	_update_indoor_hud()
@@ -3064,13 +3318,13 @@ func _update_indoor_hud() -> void:
 		return
 	var rinfo: Dictionary = indoor_rooms.get(current_room_id, {})
 	indoor_title_lbl.text = str(rinfo.get("name", "室内房间"))
-	var is_player_room: bool = (current_room_id == "player")
+	var is_player_room: bool = (current_room_id in ["player", "player_2f"])
 	indoor_edit_btn.visible = is_player_room
 	indoor_store_btn.visible = is_player_room
 	indoor_edit_btn.text = "装修: 开" if indoor_edit_mode else "装修: 关"
 
 func _indoor_host_resident_idx() -> int:
-	if not in_interior or current_room_id == "player":
+	if not in_interior or (current_room_id in ["player", "player_2f"]):
 		return -1
 	for i in range(animals.size()):
 		if str(animals[i]["id"]) == current_room_id:
@@ -3175,14 +3429,14 @@ func _do_interior_action(act_id: String, ftype: String = "") -> void:
 			_show_toast("仔细打量了这件精致的室内陈设")
 
 func _can_place_indoor_furniture_at(gx: int, gy: int, ftype: String) -> bool:
-	if current_room_id != "player":
+	if not (current_room_id in ["player", "player_2f"]):
 		return false
 	if gx <= 0 or gx >= ROOM_W - 1 or gy <= 0 or gy >= ROOM_H - 1:
 		return false
 	if is_indoor_door_clearance(gx, gy):
 		return false
 	var is_rug: bool = (ftype == "rug")
-	var existing: Dictionary = _indoor_furniture_at("player", gx, gy, not is_rug)
+	var existing: Dictionary = _indoor_furniture_at(current_room_id, gx, gy, not is_rug)
 	if not existing.is_empty():
 		return false
 	if not is_rug:
@@ -3196,7 +3450,7 @@ func _store_front_indoor_furniture() -> void:
 		_show_toast("只有自己的小屋可以收纳或装修家具哦")
 		return
 	var f_cell: Vector2i = indoor_preview_cell if (indoor_edit_mode and indoor_preview_cell.x >= 0) else get_front_cell()
-	var furn_list: Array = indoor_rooms["player"]["furniture"]
+	var furn_list: Array = indoor_rooms[current_room_id]["furniture"]
 	for idx in range(furn_list.size() - 1, -1, -1):
 		var f: Dictionary = furn_list[idx]
 		if int(f.get("x", -1)) == f_cell.x and int(f.get("y", -1)) == f_cell.y:
@@ -3252,7 +3506,7 @@ func _on_indoor_use_tool_pressed() -> void:
 		queue_redraw()
 		return
 
-	indoor_rooms["player"]["furniture"].append({
+	indoor_rooms[current_room_id]["furniture"].append({
 		"x": f_cell.x,
 		"y": f_cell.y,
 		"type": indoor_type
@@ -3280,7 +3534,7 @@ func _handle_indoor_edit_tap(screen_pos: Vector2) -> void:
 		if _can_place_indoor_furniture_at(cell.x, cell.y, mtype):
 			indoor_moving_item["x"] = cell.x
 			indoor_moving_item["y"] = cell.y
-			indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+			indoor_rooms[current_room_id]["furniture"].append(indoor_moving_item)
 			var nm: String = str(INDOOR_FURNITURE_META.get(mtype, {}).get("name", "家具"))
 			indoor_moving_item = {}
 			_spawn_burst_effect(Vector2(cell) * TILE_SIZE + Vector2(8, 8), PAL_GRASS)
@@ -3291,7 +3545,7 @@ func _handle_indoor_edit_tap(screen_pos: Vector2) -> void:
 		return
 
 	# 如果点击了已有的家具：拿起它准备移动
-	var furn_list: Array = indoor_rooms["player"]["furniture"]
+	var furn_list: Array = indoor_rooms[current_room_id]["furniture"]
 	for idx in range(furn_list.size() - 1, -1, -1):
 		var f: Dictionary = furn_list[idx]
 		if int(f.get("x", -1)) == cell.x and int(f.get("y", -1)) == cell.y:
@@ -5102,7 +5356,7 @@ func _on_cancel_button_pressed() -> void:
 		return
 	if in_interior:
 		if not indoor_moving_item.is_empty() and current_room_id == "player":
-			indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+			indoor_rooms[current_room_id]["furniture"].append(indoor_moving_item)
 			indoor_moving_item = {}
 			_show_toast("已取消移动，家具已放回原位置")
 			queue_redraw()
@@ -6051,12 +6305,23 @@ func _load_game() -> void:
 			_show_toast("施工完成！%d 座新建筑在清晨落成" % done)
 
 	_init_indoor_rooms()
+	player_floor = clampi(int(data.get("player_floor", 1)), 1, 2)
+	player_shirt_idx = clampi(int(data.get("player_shirt_idx", 0)), 0, SHIRT_COLORS.size() - 1)
+	player_hat_idx = clampi(int(data.get("player_hat_idx", 0)), 0, HAT_NAMES.size() - 1)
+	ai_enabled = bool(data.get("ai_enabled", false))
+
+	if data.has("storage_box_items") and typeof(data["storage_box_items"]) == TYPE_DICTIONARY:
+		storage_box_items = data["storage_box_items"]
+	if data.has("fridge_items") and typeof(data["fridge_items"]) == TYPE_DICTIONARY:
+		fridge_items = data["fridge_items"]
+
 	if data.has("indoor_rooms") and typeof(data["indoor_rooms"]) == TYPE_DICTIONARY:
 		var saved_rooms: Dictionary = data["indoor_rooms"]
-		if saved_rooms.has("player") and typeof(saved_rooms["player"]) == TYPE_DICTIONARY:
-			var pr: Dictionary = saved_rooms["player"]
-			if pr.has("furniture") and typeof(pr["furniture"]) == TYPE_ARRAY:
-				indoor_rooms["player"]["furniture"] = pr["furniture"]
+		for rk in ["player", "player_2f"]:
+			if saved_rooms.has(rk) and typeof(saved_rooms[rk]) == TYPE_DICTIONARY:
+				var pr: Dictionary = saved_rooms[rk]
+				if pr.has("furniture") and typeof(pr["furniture"]) == TYPE_ARRAY:
+					indoor_rooms[rk]["furniture"] = pr["furniture"]
 
 	if data.has("player") and typeof(data["player"]) == TYPE_DICTIONARY:
 		var p: Dictionary = data["player"]
