@@ -30,7 +30,7 @@ const TILE_SIZE: int = 16
 const SAVE_PATH: String = "user://little_island_diary_save_v2.json"
 const TEMP_SAVE_PATH: String = "user://little_island_diary_save_v2.tmp"
 const BAK_SAVE_PATH: String = "user://little_island_diary_save_v2.bak"
-const SAVE_VERSION: int = 6
+const SAVE_VERSION: int = 7
 
 # --- 《小岛日记》V1.0 核心锁定色板 ---
 const PAL_CREAM      := Color("#FFF2D6")
@@ -198,93 +198,152 @@ var animals: Array = [
 	{
 		"id": "rabbit",
 		"name": "兔子莉莉",
+		"species": "兔子",
 		"trait": "温柔",
 		"pos": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
 		"home": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
-		"target": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
 		"body_col": Color("#FFF9F5"),
 		"ear_col": Color("#EE8398"),
 		"shirt_col": Color("#EE8398"),
-		"wait_timer": 2.0,
-		"friendship": 1,
-		"dialogs": [
-			"欢迎来到《小岛日记》！你看底部快捷栏和右上角都换上了精致的绘本像素图标呢~",
-			"我最喜欢在中央喷泉和花坛附近散步啦，用【浇水壶】给花朵浇水会让它们闪闪发光哦！",
-			"进入【岛建】后，不仅能铺路、挖河、造高地，还能用【移动】工具调整岛上的家具和植物位置！"
-		]
+		"personality": {"social": 0.80, "curiosity": 0.50, "energy": 0.40, "calm": 0.90, "order": 0.70},
+		"interests": ["阅读", "花"],
+		"needs": {"social": 0.55, "fun": 0.50, "energy": 0.80, "hunger": 0.75},
+		"affinity": 20,
+		"relations": {},
+		"knowledge": 0,
+		"memory": [],
+		"action": "stroll",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 1.0,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
 	},
 	{
 		"id": "cat",
 		"name": "猫咪奈奈",
+		"species": "猫咪",
 		"trait": "活泼",
 		"pos": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
 		"home": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
-		"target": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
 		"body_col": Color("#F5B06C"),
 		"ear_col": Color("#D97A3E"),
 		"shirt_col": Color("#74C9ED"),
-		"wait_timer": 3.2,
-		"friendship": 1,
-		"dialogs": [
-			"喵呜~ 南边金沙滩和木栈桥旁边经常有粉色的【海贝壳】，走过去点右侧【拾取】就能捡起来！",
-			"东边的小河和南边的大海都能钓鱼，切换到【钓鱼竿】去试试手气吧！",
-			"不管你什么时候打开手机上岛，我们都会在这里陪着你，一点也不用赶进度哦。"
-		]
+		"personality": {"social": 0.95, "curiosity": 0.70, "energy": 0.90, "calm": 0.30, "order": 0.40},
+		"interests": ["音乐", "运动"],
+		"needs": {"social": 0.45, "fun": 0.55, "energy": 0.85, "hunger": 0.65},
+		"affinity": 20,
+		"relations": {},
+		"knowledge": 0,
+		"memory": [],
+		"action": "stroll",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 2.0,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
 	},
 	{
 		"id": "fox",
 		"name": "狐狸阿洛",
+		"species": "狐狸",
 		"trait": "独立",
 		"pos": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
 		"home": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
-		"target": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
 		"body_col": Color("#F08A61"),
 		"ear_col": Color("#544A44"),
 		"shirt_col": Color("#39815D"),
-		"wait_timer": 4.0,
-		"friendship": 1,
-		"dialogs": [
-			"西北边的松林区长满了松树、小蘑菇和树桩，散步起来特别安静舒服。",
-			"点击顶部【地图】可以随时查看全岛的实时地形，支持用手指拖动和放大缩小。",
-			"岛建时如果误操作了，随时点右侧的【撤销】或【重做】按钮就能恢复原状。"
-		]
+		"personality": {"social": 0.35, "curiosity": 0.90, "energy": 0.60, "calm": 0.80, "order": 0.50},
+		"interests": ["探索", "阅读"],
+		"needs": {"social": 0.70, "fun": 0.50, "energy": 0.75, "hunger": 0.70},
+		"affinity": 20,
+		"relations": {},
+		"knowledge": 0,
+		"memory": [],
+		"action": "stroll",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 3.0,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
 	},
 	{
 		"id": "bear",
 		"name": "小熊布朗",
+		"species": "小熊",
 		"trait": "憨厚",
 		"pos": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
 		"home": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
-		"target": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
 		"body_col": Color("#B98761"),
 		"ear_col": Color("#8A5B45"),
 		"shirt_col": Color("#F5DDA1"),
-		"wait_timer": 2.8,
-		"friendship": 1,
-		"dialogs": [
-			"呼呼~ 河对岸就是热闹的【海岛杂货铺】，捡到的贝壳、钓到的小鱼都能去那里换铃钱！",
-			"我最喜欢吃果树上的红苹果啦，用【伐木斧】砍树就能收获木材和苹果哦。",
-			"东北边的高地上有一道清澈的悬崖瀑布，流下来的水汇成了我们的小河。"
-		]
+		"personality": {"social": 0.70, "curiosity": 0.40, "energy": 0.50, "calm": 0.85, "order": 0.60},
+		"interests": ["料理", "花"],
+		"needs": {"social": 0.50, "fun": 0.50, "energy": 0.70, "hunger": 0.60},
+		"affinity": 20,
+		"relations": {},
+		"knowledge": 0,
+		"memory": [],
+		"action": "stroll",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 1.5,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
 	},
 	{
 		"id": "penguin",
 		"name": "企鹅波波",
+		"species": "企鹅",
 		"trait": "开朗",
 		"pos": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
 		"home": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
-		"target": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
 		"body_col": Color("#5B9BD5"),
 		"ear_col": Color("#379CC9"),
 		"shirt_col": Color("#F08A61"),
-		"wait_timer": 3.6,
-		"friendship": 1,
-		"dialogs": [
-			"噗噗！南边的海滨椰林和木栈桥码头视野超棒，一眼望去全都是蔚蓝的大海！",
-			"在海滩旁放几张木长椅和盆栽，吹着海风听着海浪声，烦恼全都飞走啦！"
-		]
+		"personality": {"social": 0.90, "curiosity": 0.60, "energy": 0.80, "calm": 0.50, "order": 0.50},
+		"interests": ["海", "音乐"],
+		"needs": {"social": 0.50, "fun": 0.60, "energy": 0.75, "hunger": 0.70},
+		"affinity": 20,
+		"relations": {},
+		"knowledge": 0,
+		"memory": [],
+		"action": "stroll",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 2.5,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
 	}
 ]
+
+# --- 居民 AI 配置 ---
+const RESIDENT_SPEED: float = 24.0
+const MEMORY_CAP: int = 12
+const AI_DECISION_MIN: float = 2.0
+const AI_DECISION_MAX: float = 4.0
+const AI_DEBUG_LOG: bool = true
+
+# 行动目录：need 表示该行动主要补足的需求，poi 是目标点类型
+const RESIDENT_ACTIONS: Dictionary = {
+	"rest":   {"label": "回家休息",   "need": "energy", "poi": "home"},
+	"eat":    {"label": "找点吃的",   "need": "hunger", "poi": "food"},
+	"chat":   {"label": "找人聊天",   "need": "social", "poi": "friend"},
+	"play":   {"label": "去海边玩",   "need": "fun",    "poi": "beach"},
+	"read":   {"label": "长椅上看书", "need": "fun",    "poi": "bench"},
+	"shop":   {"label": "逛杂货铺",   "need": "fun",    "poi": "shop"},
+	"stroll": {"label": "四处散步",   "need": "fun",    "poi": "nearby"}
+}
 
 # --- 环境粒子与交互特效 ---
 var ambient_particles: Array = []
@@ -372,6 +431,7 @@ var toast_label: Label
 var toast_timer: float = 0.0
 var time_refresh_timer: float = 0.0
 var cached_day_key: String = ""
+var clock_hour: int = 12
 var day_watch_timer: float = 0.0
 
 var right_action_box: VBoxContainer
@@ -428,6 +488,7 @@ func _ready() -> void:
 
 	_preload_all_icons()
 	_init_default_island()
+	_init_residents()
 	_init_default_inventory()
 	_init_ambient_particles()
 
@@ -860,7 +921,7 @@ func _physics_process(delta: float) -> void:
 	if camera != null and not (game_state == GameState.BUILD_MODE and is_camera_pan_mode):
 		camera.position = player_pos
 
-	_update_animals(delta)
+	_update_residents(delta)
 	queue_redraw()
 
 func _process(delta: float) -> void:
@@ -904,29 +965,452 @@ func _update_particles(delta: float) -> void:
 		if float(bp["life"]) <= 0.0:
 			burst_particles.remove_at(i)
 
-func _update_animals(delta: float) -> void:
+func _init_residents() -> void:
+	# 兼容旧存档：补齐 AI 字段
 	for i in range(animals.size()):
 		var a: Dictionary = animals[i]
-		var pos: Vector2 = a["pos"]
-		var target: Vector2 = a["target"]
-		if pos.distance_to(target) > 2.0:
-			var dir: Vector2 = (target - pos).normalized()
-			var next_pos: Vector2 = pos + dir * 22.0 * delta
-			var cell: Vector2i = world_to_grid(next_pos)
-			if is_cell_walkable(cell.x, cell.y, false) and next_pos.distance_to(player_pos) > 14.0:
-				a["pos"] = next_pos
+		if not a.has("personality"):
+			a["personality"] = {"social": 0.6, "curiosity": 0.5, "energy": 0.6, "calm": 0.5, "order": 0.5}
+		if not a.has("interests"):
+			a["interests"] = []
+		if not a.has("needs"):
+			a["needs"] = {"social": 0.5, "fun": 0.5, "energy": 0.8, "hunger": 0.7}
+		if not a.has("relations"):
+			a["relations"] = {}
+		if not a.has("memory"):
+			a["memory"] = []
+		if not a.has("knowledge"):
+			a["knowledge"] = 0
+		if not a.has("affinity"):
+			a["affinity"] = int(a.get("friendship", 20))
+		if a.has("friendship"):
+			a.erase("friendship")
+		if a.has("dialogs"):
+			a.erase("dialogs")
+		if a.has("wait_timer"):
+			a.erase("wait_timer")
+		a["path"] = []
+		a["action"] = "stroll"
+		a["action_reason"] = "刚出门，先随便走走"
+		a["action_timer"] = 0.0
+		a["decision_timer"] = randf_range(AI_DECISION_MIN, AI_DECISION_MAX)
+		a["chat_cd"] = 0.0
+		a["greet_cd"] = 0.0
+		a["stuck_t"] = 0.0
+	# 初始化两两关系
+	for i in range(animals.size()):
+		for j in range(animals.size()):
+			if i == j:
+				continue
+			var other_id: String = str(animals[j]["id"])
+			if not animals[i]["relations"].has(other_id):
+				animals[i]["relations"][other_id] = 0
+
+func _resident_needs(a: Dictionary) -> Dictionary:
+	return a["needs"]
+
+func _resident_personality(a: Dictionary) -> Dictionary:
+	return a["personality"]
+
+func _resident_action_label(action_id: String) -> String:
+	if RESIDENT_ACTIONS.has(action_id):
+		return str(RESIDENT_ACTIONS[action_id]["label"])
+	return action_id
+
+func _resident_action_target(idx: int, action_id: String) -> Vector2i:
+	var a: Dictionary = animals[idx]
+	var poi: String = "nearby"
+	if RESIDENT_ACTIONS.has(action_id):
+		poi = str(RESIDENT_ACTIONS[action_id]["poi"])
+	match poi:
+		"home":
+			return _nearest_walkable_cell(world_to_grid(a["home"]), 3, false)
+		"food":
+			return _nearest_walkable_cell(Vector2i(30, 32), 3, false)
+		"bench":
+			return _nearest_walkable_cell(Vector2i(29, 29), 2, false)
+		"shop":
+			return _nearest_walkable_cell(Vector2i(40, 28), 3, false)
+		"beach":
+			return _nearest_walkable_cell(Vector2i(30, 52), 4, false)
+		"friend":
+			var best := Vector2i(-1, -1)
+			var best_d := 9999.0
+			var my_pos: Vector2 = a["pos"]
+			for j in range(animals.size()):
+				if j == idx:
+					continue
+				var op: Vector2 = animals[j]["pos"]
+				var d: float = my_pos.distance_to(op)
+				if d < best_d:
+					best_d = d
+					best = _nearest_walkable_cell(world_to_grid(op), 2)
+			return best
+		_:
+			# 以当前位置为中心，找一块 8 格内的随机空地
+			var from := world_to_grid(a["pos"])
+			for attempt in range(12):
+				var rx: int = from.x + randi_range(-8, 8)
+				var ry: int = from.y + randi_range(-8, 8)
+				if is_cell_walkable(rx, ry, false):
+					return Vector2i(rx, ry)
+			return _nearest_walkable_cell(from, 4)
+
+func _resident_score_action(idx: int, action_id: String, hour: int) -> float:
+	var a: Dictionary = animals[idx]
+	var p: Dictionary = a["personality"]
+	var n: Dictionary = a["needs"]
+	var score: float = 0.0
+	match action_id:
+		"rest":
+			score = (1.0 - float(n["energy"])) * 2.2 + (0.4 if (hour >= 20 or hour < 6) else 0.0) - float(p["energy"]) * 0.4
+		"eat":
+			score = (1.0 - float(n["hunger"])) * 2.2 + (0.3 if hour in [7, 8, 12, 18] else 0.0)
+		"chat":
+			score = (1.0 - float(n["social"])) * 2.4 + float(p["social"]) * 1.2
+		"play":
+			score = (1.0 - float(n["fun"])) * 1.8 + float(p["energy"]) * 0.8 + (0.4 if hour >= 10 and hour < 18 else 0.0)
+		"read":
+			score = float(p["curiosity"]) * 1.4 + (1.0 - float(n["fun"])) * 0.7 + (0.3 if hour >= 15 else 0.0)
+		"shop":
+			score = float(p["social"]) * 0.7 + (1.0 - float(n["fun"])) * 0.6 + (0.2 if hour >= 11 and hour < 19 else 0.0)
+		"stroll":
+			score = 0.9 + float(p["energy"]) * 0.4
+
+	var act_interest: Dictionary = {"read": "阅读", "play": "海", "shop": "料理", "eat": "料理", "chat": "朋友", "stroll": "探索"}
+	var tag: String = str(act_interest.get(action_id, ""))
+	if tag != "" and tag in a["interests"]:
+		score += 0.6
+
+	var cell := _resident_action_target(idx, action_id)
+	if cell.x < 0:
+		return -1.0
+	var from := world_to_grid(a["pos"])
+	score -= float(absi(from.x - cell.x) + absi(from.y - cell.y)) * 0.02
+	score += randf() * 0.25
+	return score
+
+func _resident_choose_action(idx: int) -> void:
+	var a: Dictionary = animals[idx]
+	var hour: int = clock_hour
+	var best_id: String = "stroll"
+	var best_score: float = -999.0
+	var score_log: Array = []
+	for action_id in RESIDENT_ACTIONS.keys():
+		var s: float = _resident_score_action(idx, str(action_id), hour)
+		score_log.append("%s=%.2f" % [str(action_id), s])
+		if s > best_score:
+			best_score = s
+			best_id = str(action_id)
+
+	var target := _resident_action_target(idx, best_id)
+	if target.x < 0:
+		best_id = "stroll"
+		target = _resident_action_target(idx, best_id)
+
+	a["action"] = best_id
+	a["action_timer"] = float(_resident_action_duration(best_id))
+	a["action_reason"] = "选%s(%.2f) | 社交%.2f 心情%.2f 精力%.2f 饥饿%.2f | %d时" % [
+		_resident_action_label(best_id), best_score,
+		float(a["needs"]["social"]), float(a["needs"]["fun"]),
+		float(a["needs"]["energy"]), float(a["needs"]["hunger"]), hour
+	]
+	if not _resident_go_to(idx, target):
+		a["action_reason"] += " | 目标不可达，改为散步"
+		a["action"] = "stroll"
+		a["action_timer"] = 6.0
+		var alt := _resident_action_target(idx, "stroll")
+		_resident_go_to(idx, alt)
+	if AI_DEBUG_LOG:
+		print("[AI] ", a["name"], " -> ", a["action_reason"], " | ", " ".join(score_log))
+
+func _resident_action_duration(action_id: String) -> float:
+	match action_id:
+		"rest": return randf_range(14.0, 22.0)
+		"read": return randf_range(10.0, 16.0)
+		"chat": return randf_range(7.0, 11.0)
+		"play": return randf_range(9.0, 14.0)
+		"shop": return randf_range(6.0, 10.0)
+		"eat": return randf_range(8.0, 12.0)
+		_: return randf_range(5.0, 8.0)
+
+func _resident_go_to(idx: int, target_cell: Vector2i) -> bool:
+	var a: Dictionary = animals[idx]
+	if target_cell.x < 0:
+		return false
+	var from := world_to_grid(a["pos"])
+	if from == target_cell:
+		a["path"] = []
+		return true
+	var p: Array = find_path(from, target_cell)
+	if p.is_empty():
+		return false
+	for c in p:
+		if not is_cell_walkable(c.x, c.y, false):
+			return false
+	a["path"] = p
+	a["stuck_t"] = 0.0
+	return true
+
+func _resident_blocked_by_other(idx: int, next_pos: Vector2) -> bool:
+	for j in range(animals.size()):
+		if j == idx:
+			continue
+		var op: Vector2 = animals[j]["pos"]
+		if op.distance_to(next_pos) < 9.0:
+			return true
+	return false
+
+func _resident_move(idx: int, delta: float) -> void:
+	var a: Dictionary = animals[idx]
+	var path: Array = a["path"]
+	if path.is_empty():
+		return
+	var pos: Vector2 = a["pos"]
+
+	while not path.is_empty():
+		var target: Vector2 = Vector2(path[0]) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
+		var to_target: Vector2 = target - pos
+		if to_target.length() <= 2.5:
+			path.pop_front()
+			continue
+		var step: float = minf(RESIDENT_SPEED * delta, to_target.length())
+		var next_pos: Vector2 = pos + to_target.normalized() * step
+		if _resident_blocked_by_other(idx, next_pos) or next_pos.distance_to(player_pos) < 8.0:
+			a["stuck_t"] = float(a.get("stuck_t", 0.0)) + delta
+			if float(a["stuck_t"]) > 1.4:
+				path.clear()
+				a["action_timer"] = 0.0
+				a["stuck_t"] = 0.0
+			return
+		a["stuck_t"] = 0.0
+		a["pos"] = next_pos
+		return
+
+func _resident_tick_needs(idx: int, delta: float) -> void:
+	var a: Dictionary = animals[idx]
+	var n: Dictionary = a["needs"]
+	n["social"] = clampf(float(n["social"]) - 0.004 * delta, 0.0, 1.0)
+	n["fun"] = clampf(float(n["fun"]) - 0.005 * delta, 0.0, 1.0)
+	n["hunger"] = clampf(float(n["hunger"]) - 0.003 * delta, 0.0, 1.0)
+	if not (a["path"] as Array).is_empty():
+		n["energy"] = clampf(float(n["energy"]) - 0.004 * delta, 0.0, 1.0)
+
+func _resident_apply_action(idx: int, delta: float) -> void:
+	var a: Dictionary = animals[idx]
+	var n: Dictionary = a["needs"]
+	match str(a["action"]):
+		"rest":
+			n["energy"] = clampf(float(n["energy"]) + 0.06 * delta, 0.0, 1.0)
+		"eat":
+			n["hunger"] = clampf(float(n["hunger"]) + 0.08 * delta, 0.0, 1.0)
+			n["fun"] = clampf(float(n["fun"]) + 0.01 * delta, 0.0, 1.0)
+		"play":
+			n["fun"] = clampf(float(n["fun"]) + 0.06 * delta, 0.0, 1.0)
+			n["energy"] = clampf(float(n["energy"]) - 0.01 * delta, 0.0, 1.0)
+		"read":
+			a["knowledge"] = float(a["knowledge"]) + 0.25 * delta
+			n["fun"] = clampf(float(n["fun"]) + 0.02 * delta, 0.0, 1.0)
+		"chat":
+			n["social"] = clampf(float(n["social"]) + 0.05 * delta, 0.0, 1.0)
+		"shop":
+			n["fun"] = clampf(float(n["fun"]) + 0.03 * delta, 0.0, 1.0)
+		"stroll":
+			n["fun"] = clampf(float(n["fun"]) + 0.02 * delta, 0.0, 1.0)
+
+func _resident_add_memory(idx: int, kind: String, who: String, text: String, val: int) -> void:
+	var a: Dictionary = animals[idx]
+	var mem: Array = a["memory"]
+	mem.append({"kind": kind, "who": who, "text": text, "val": val, "at": int(Time.get_unix_time_from_system())})
+	# 容量上限 + 容量外的最旧记忆直接遗忘
+	while mem.size() > MEMORY_CAP:
+		mem.pop_front()
+
+func _resident_player_memory_text(a: Dictionary) -> String:
+	var mem: Array = a["memory"]
+	for i in range(mem.size() - 1, -1, -1):
+		var m: Dictionary = mem[i]
+		if str(m.get("kind", "")) == "player":
+			return str(m.get("text", ""))
+	return ""
+
+func _resident_compat(i: int, j: int) -> float:
+	var p1: Dictionary = animals[i]["personality"]
+	var p2: Dictionary = animals[j]["personality"]
+	var diff: float = 0.0
+	for k in ["social", "curiosity", "energy", "calm", "order"]:
+		diff += absf(float(p1[k]) - float(p2[k]))
+	diff = diff / 5.0
+	var overlap: int = 0
+	for tag in animals[i]["interests"]:
+		if tag in animals[j]["interests"]:
+			overlap += 1
+	return clampf(1.0 - diff + float(overlap) * 0.12, 0.0, 1.0)
+
+func _resident_social_scan(delta: float) -> void:
+	for i in range(animals.size()):
+		var a: Dictionary = animals[i]
+		if float(a["chat_cd"]) > 0.0:
+			continue
+		for j in range(animals.size()):
+			if i == j:
+				continue
+			var b: Dictionary = animals[j]
+			if (a["pos"] as Vector2).distance_to(b["pos"]) > 26.0:
+				continue
+			if (a["path"] as Array).size() > 0 or (b["path"] as Array).size() > 0:
+				continue
+			var compat: float = _resident_compat(i, j)
+			var change: int = int(round((compat - 0.5) * 8.0))
+			change = clampi(change, -4, 5)
+			a["relations"][str(b["id"])] = clampi(int(a["relations"].get(str(b["id"]), 0)) + change, -100, 100)
+			b["relations"][str(a["id"])] = clampi(int(b["relations"].get(str(a["id"]), 0)) + change, -100, 100)
+			if change >= 0:
+				_resident_add_memory(i, "friend", str(b["id"]), "和%s聊得很开心" % str(b["name"]), change)
+				a["needs"]["social"] = clampf(float(a["needs"]["social"]) + 0.12, 0.0, 1.0)
 			else:
-				a["target"] = pos
+				_resident_add_memory(i, "conflict", str(b["id"]), "和%s闹了点小别扭" % str(b["name"]), change)
+				a["needs"]["fun"] = clampf(float(a["needs"]["fun"]) - 0.06, 0.0, 1.0)
+			a["chat_cd"] = randf_range(10.0, 16.0)
+			b["chat_cd"] = randf_range(6.0, 12.0)
+
+func _resident_greet_player(delta: float) -> void:
+	for i in range(animals.size()):
+		var a: Dictionary = animals[i]
+		a["greet_cd"] = maxf(0.0, float(a["greet_cd"]) - delta)
+		if float(a["greet_cd"]) > 0.0:
+			continue
+		if (a["pos"] as Vector2).distance_to(player_pos) > 34.0:
+			continue
+		if str(a["action"]) == "rest":
+			continue
+		var line: String = _resident_small_talk(i)
+		_show_toast("%s：%s" % [str(a["name"]), line])
+		a["greet_cd"] = randf_range(40.0, 70.0)
+		a["affinity"] = clampi(int(a["affinity"]) + 1, 0, 100)
+
+func _resident_small_talk(i: int) -> String:
+	var a: Dictionary = animals[i]
+	var n: Dictionary = a["needs"]
+	var p: Dictionary = a["personality"]
+	if float(n["energy"]) < 0.25:
+		return "我有点走不动啦，想回家歇一会儿。"
+	if float(n["hunger"]) < 0.25:
+		return "肚子咕咕叫，我先去找点吃的。"
+	if float(n["social"]) < 0.3 and float(p["social"]) > 0.6:
+		return "正想找人聊天呢，你来得正好。"
+	if str(a["action"]) == "read":
+		return "这本书里讲了好多小岛的故事。"
+	if str(a["action"]) == "play":
+		return "海边的风今天特别舒服。"
+	if str(a["action"]) == "chat":
+		return "刚和朋友聊完，心情不错。"
+	return "今天的小岛也很安静呢。"
+
+func _resident_greet_line(i: int) -> String:
+	var a: Dictionary = animals[i]
+	var p: Dictionary = a["personality"]
+	var n: Dictionary = a["needs"]
+	var aff: int = int(a["affinity"])
+	var lines: Array = []
+
+	if float(p["social"]) >= 0.8:
+		lines.append(["嗨！见到你真好呀～", "你来得正好，陪我走两步吧！"][randi() % 2])
+	elif float(p["social"]) <= 0.45:
+		lines.append(["……你好。我自己待会儿也挺好的。", "嗯，是你啊。有事吗？"][randi() % 2])
+	else:
+		lines.append(["今天的风很舒服呢。", "嗨，慢慢逛呀。"][randi() % 2])
+
+	if float(n["energy"]) < 0.3:
+		lines.append("我有点累了，刚想回家躺一会儿。")
+	elif float(n["hunger"]) < 0.3:
+		lines.append("肚子有点饿，正打算去找点吃的。")
+
+	if float(a["knowledge"]) >= 4.0:
+		lines.append("我最近看了不少书，知道了好多岛上的事。")
+
+	var mem_text: String = _resident_player_memory_text(a)
+	if mem_text != "" and randf() < 0.55:
+		lines.append("我还记得，%s。" % mem_text)
+
+	if aff >= 60:
+		lines.append("和你聊天总是很安心。")
+	elif aff <= 5:
+		lines.append("我们好像还没说过几句话。")
+
+	var friend_line: String = _resident_best_friend_line(i)
+	if friend_line != "":
+		lines.append(friend_line)
+
+	return "\n".join(lines)
+
+func _resident_best_friend_line(i: int) -> String:
+	var a: Dictionary = animals[i]
+	var best_id: String = ""
+	var best_val: int = -999
+	for k in a["relations"].keys():
+		var v: int = int(a["relations"][k])
+		if v > best_val:
+			best_val = v
+			best_id = str(k)
+	if best_val >= 8:
+		for j in range(animals.size()):
+			if str(animals[j]["id"]) == best_id:
+				return "我和%s最近处得不错。" % str(animals[j]["name"])
+	if best_val <= -8:
+		for j in range(animals.size()):
+			if str(animals[j]["id"]) == best_id:
+				return "我和%s最近有点合不来。" % str(animals[j]["name"])
+	return ""
+
+func _resident_interact(i: int) -> void:
+	var a: Dictionary = animals[i]
+	a["affinity"] = clampi(int(a["affinity"]) + 3, 0, 100)
+	a["needs"]["social"] = clampf(float(a["needs"]["social"]) + 0.15, 0.0, 1.0)
+	a["needs"]["fun"] = clampf(float(a["needs"]["fun"]) + 0.05, 0.0, 1.0)
+	_resident_add_memory(i, "player", "player", "和你在%s聊过天" % _resident_action_label(str(a["action"])), 3)
+	_open_dialog_modal(
+		"%s · %s · ♥%d · 正在%s" % [str(a["name"]), str(a["trait"]), int(a["affinity"]), _resident_action_label(str(a["action"]))],
+		_resident_greet_line(i)
+	)
+	if AI_DEBUG_LOG:
+		print("[AI] 玩家与 ", a["name"], " 交互，好感=", a["affinity"], " 记忆=", a["memory"].size())
+
+func _resident_debug_report() -> String:
+	var lines: Array = []
+	for i in range(animals.size()):
+		var a: Dictionary = animals[i]
+		var n: Dictionary = a["needs"]
+		lines.append("%s（%s / %s）♥%d 知识%d" % [str(a["name"]), str(a["species"]), str(a["trait"]), int(a["affinity"]), int(float(a["knowledge"]))])
+		lines.append("  当前：%s" % _resident_action_label(str(a["action"])))
+		lines.append("  原因：%s" % str(a["action_reason"]))
+		lines.append("  需求：社交 %.2f / 心情 %.2f / 精力 %.2f / 饥饿 %.2f" % [
+			float(n["social"]), float(n["fun"]), float(n["energy"]), float(n["hunger"])])
+		var rel_parts: Array = []
+		for k in a["relations"].keys():
+			rel_parts.append("%s %+d" % [str(k), int(a["relations"][k])])
+		if not rel_parts.is_empty():
+			lines.append("  关系：" + "，".join(rel_parts))
+		if (a["memory"] as Array).size() > 0:
+			var m: Dictionary = a["memory"][a["memory"].size() - 1]
+			lines.append("  最近记忆：%s" % str(m.get("text", "")))
+		lines.append("")
+	return "\n".join(lines)
+
+func _update_residents(delta: float) -> void:
+	for i in range(animals.size()):
+		var a: Dictionary = animals[i]
+		_resident_tick_needs(i, delta)
+		_resident_move(i, delta)
+		if (a["path"] as Array).is_empty():
+			_resident_apply_action(i, delta)
+			a["action_timer"] = float(a["action_timer"]) - delta
+			if float(a["action_timer"]) <= 0.0:
+				_resident_choose_action(i)
 		else:
-			var wt: float = float(a["wait_timer"]) - delta
-			if wt <= 0.0:
-				wt = randf_range(2.8, 6.0)
-				var home: Vector2 = a["home"]
-				var candidate: Vector2 = home + Vector2(randf_range(-48.0, 48.0), randf_range(-48.0, 48.0))
-				var c_cell: Vector2i = world_to_grid(candidate)
-				if is_cell_walkable(c_cell.x, c_cell.y, false):
-					a["target"] = candidate
-			a["wait_timer"] = wt
+			a["action_timer"] = maxf(0.0, float(a["action_timer"]))
+	_resident_social_scan(delta)
+	_resident_greet_player(delta)
 
 # ==============================================================================
 # 网格坐标与碰撞判断
@@ -1106,12 +1590,8 @@ func _on_interact_pressed() -> void:
 	match nearby_interact_type:
 		"animal":
 			if nearby_animal_idx >= 0 and nearby_animal_idx < animals.size():
-				var a: Dictionary = animals[nearby_animal_idx]
-				var d_list: Array = a["dialogs"]
-				var msg: String = d_list[int(a["friendship"] - 1) % d_list.size()]
-				a["friendship"] = int(a["friendship"]) + 1
-				_spawn_burst_effect(a["pos"] + Vector2(0, -14), PAL_PINK)
-				_open_dialog_modal("%s · 性格:%s (友好度 ♥%d)" % [a["name"], a["trait"], int(a["friendship"])], msg)
+				_spawn_burst_effect(animals[nearby_animal_idx]["pos"] + Vector2(0, -14), PAL_PINK)
+				_resident_interact(nearby_animal_idx)
 		"pickup":
 			if is_valid_cell(nearby_interact_cell.x, nearby_interact_cell.y):
 				var picked_obj: int = object_grid[nearby_interact_cell.x][nearby_interact_cell.y]
@@ -1696,7 +2176,7 @@ func _handle_ground_click(screen_pos: Vector2) -> void:
 	path_last_pos = player_pos
 	queue_redraw()
 
-func _nearest_walkable_cell(from_cell: Vector2i, max_radius: int) -> Vector2i:
+func _nearest_walkable_cell(from_cell: Vector2i, max_radius: int, allow_high: bool = true) -> Vector2i:
 	for r in range(0, max_radius + 1):
 		for dx in range(-r, r + 1):
 			for dy in range(-r, r + 1):
@@ -1704,7 +2184,7 @@ func _nearest_walkable_cell(from_cell: Vector2i, max_radius: int) -> Vector2i:
 					continue
 				var nx: int = from_cell.x + dx
 				var ny: int = from_cell.y + dy
-				if is_cell_walkable(nx, ny):
+				if is_cell_walkable(nx, ny, allow_high):
 					return Vector2i(nx, ny)
 	return Vector2i(-1, -1)
 
@@ -3124,6 +3604,14 @@ func _build_all_modals() -> void:
 	)
 	set_panel.add_child(grid_toggle_btn)
 
+	var ai_btn := _make_touch_btn("查看居民 AI 状态", Vector2(240, 36), PAL_SKY_BLUE, PAL_OUTLINE)
+	ai_btn.position = Vector2(100, 208)
+	ai_btn.pressed.connect(func():
+		_close_active_modal()
+		_open_dialog_modal("居民状态（本地 AI）", _resident_debug_report())
+	)
+	set_panel.add_child(ai_btn)
+
 	# 5. 商店弹窗（每个商品卡片均带有对应的真实 PNG 图标）
 	var shop_res: Array = _create_modal_base("小岛温馨杂货铺", "shop_ui", Vector2(490, 286))
 	shop_modal = shop_res[0]
@@ -3315,6 +3803,7 @@ func _update_time_and_lighting() -> void:
 	var dt: Dictionary = Time.get_datetime_dict_from_system()
 	var month: int = int(dt.get("month", 10))
 	var h: int = int(dt.get("hour", 12))
+	clock_hour = h
 	var mi: int = int(dt.get("minute", 0))
 
 	var season: String = "秋"
@@ -3431,9 +3920,17 @@ func _check_day_rollover() -> void:
 			_save_game()
 
 func _save_game() -> bool:
-	var friendship: Array = []
+	var residents_state: Array = []
 	for a in animals:
-		friendship.append(int(a.get("friendship", 1)))
+		residents_state.append({
+			"id": str(a["id"]),
+			"pos": {"x": snappedf((a["pos"] as Vector2).x, 0.1), "y": snappedf((a["pos"] as Vector2).y, 0.1)},
+			"affinity": int(a["affinity"]),
+			"knowledge": float(a["knowledge"]),
+			"needs": a["needs"],
+			"relations": a["relations"],
+			"memory": a["memory"]
+		})
 	var data: Dictionary = {
 		"version": SAVE_VERSION,
 		"saved_unix_time": int(Time.get_unix_time_from_system()),
@@ -3443,7 +3940,7 @@ func _save_game() -> bool:
 		"inventory": inventory,
 		"hotbar": hotbar,
 		"selected_hotbar_index": selected_hotbar_index,
-		"friendship": friendship,
+		"residents": residents_state,
 		"settings": {
 			"camera_zoom": setting_camera_zoom,
 			"move_speed_scale": setting_move_speed_scale,
@@ -3553,11 +4050,38 @@ func _load_game() -> void:
 	if data.has("selected_hotbar_index"):
 		selected_hotbar_index = clampi(int(data["selected_hotbar_index"]), 0, 5)
 
+	_init_residents()
+	# v6 及更早只有 friendship 数组：迁移成与玩家的好感度
 	if data.has("friendship") and typeof(data["friendship"]) == TYPE_ARRAY:
 		var fs: Array = data["friendship"]
 		for i in range(animals.size()):
 			if i < fs.size():
-				animals[i]["friendship"] = maxi(1, int(fs[i]))
+				animals[i]["affinity"] = clampi(20 + int(fs[i]) * 6, 0, 100)
+	if data.has("residents") and typeof(data["residents"]) == TYPE_ARRAY:
+		for item in data["residents"]:
+			if typeof(item) != TYPE_DICTIONARY:
+				continue
+			var rid: String = str(item.get("id", ""))
+			for j in range(animals.size()):
+				if str(animals[j]["id"]) != rid:
+					continue
+				var a2: Dictionary = animals[j]
+				a2["affinity"] = clampi(int(item.get("affinity", 20)), 0, 100)
+				a2["knowledge"] = float(item.get("knowledge", 0.0))
+				if item.has("needs") and typeof(item["needs"]) == TYPE_DICTIONARY:
+					var nd: Dictionary = item["needs"]
+					for k in ["social", "fun", "energy", "hunger"]:
+						a2["needs"][k] = clampf(float(nd.get(k, a2["needs"][k])), 0.0, 1.0)
+				if item.has("relations") and typeof(item["relations"]) == TYPE_DICTIONARY:
+					a2["relations"] = item["relations"]
+				if item.has("memory") and typeof(item["memory"]) == TYPE_ARRAY:
+					a2["memory"] = item["memory"]
+				if item.has("pos") and typeof(item["pos"]) == TYPE_DICTIONARY:
+					var pp: Dictionary = item["pos"]
+					var pt := Vector2(float(pp.get("x", a2["pos"].x)), float(pp.get("y", a2["pos"].y)))
+					var ptc: Vector2i = world_to_grid(pt)
+					if is_cell_walkable(ptc.x, ptc.y, false):
+						a2["pos"] = pt
 
 	if data.has("settings") and typeof(data["settings"]) == TYPE_DICTIONARY:
 		var st: Dictionary = data["settings"]
