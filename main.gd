@@ -20,13 +20,17 @@ extends Node2D
 #    - 严格 Y-Sort 深度排序：地面 -> 树干/阴影 -> 建筑/装饰/玩家/5位小动物按 Y 坐标交错绘制 -> 树冠遮挡层
 # ==============================================================================
 
-const GRID_WIDTH: int = 44
-const GRID_HEIGHT: int = 44
+const GRID_WIDTH: int = 64
+const GRID_HEIGHT: int = 64
+# 旧版 44x44 岛屿核心在新地图中的平移量（保证原建筑/广场/河道相对位置不变）
+const MAP_CORE_OX: int = 10
+const MAP_CORE_OY: int = 10
+const LEGACY_GRID_SIZE: int = 44
 const TILE_SIZE: int = 16
 const SAVE_PATH: String = "user://little_island_diary_save_v2.json"
 const TEMP_SAVE_PATH: String = "user://little_island_diary_save_v2.tmp"
 const BAK_SAVE_PATH: String = "user://little_island_diary_save_v2.bak"
-const SAVE_VERSION: int = 5
+const SAVE_VERSION: int = 6
 
 # --- 《小岛日记》V1.0 核心锁定色板 ---
 const PAL_CREAM      := Color("#FFF2D6")
@@ -179,6 +183,12 @@ var player_pos: Vector2 = Vector2(21.5 * TILE_SIZE, 22.5 * TILE_SIZE)
 var player_facing: Vector2 = Vector2.DOWN
 var walk_anim_time: float = 0.0
 var tool_swing_timer: float = 0.0
+
+# --- 点击地面自动寻路 ---
+var auto_path: Array[Vector2i] = []
+var path_target_cell: Vector2i = Vector2i(-1, -1)
+var path_last_pos: Vector2 = Vector2.ZERO
+var path_stuck_time: float = 0.0
 const BASE_MOVE_SPEED: float = 90.0
 const COLLISION_HALF_SIZE: Vector2 = Vector2(4.2, 4.2)
 var camera: Camera2D
@@ -189,9 +199,9 @@ var animals: Array = [
 		"id": "rabbit",
 		"name": "兔子莉莉",
 		"trait": "温柔",
-		"pos": Vector2(18.5 * TILE_SIZE, 20.5 * TILE_SIZE),
-		"home": Vector2(18.5 * TILE_SIZE, 20.5 * TILE_SIZE),
-		"target": Vector2(18.5 * TILE_SIZE, 20.5 * TILE_SIZE),
+		"pos": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
+		"home": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
+		"target": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
 		"body_col": Color("#FFF9F5"),
 		"ear_col": Color("#EE8398"),
 		"shirt_col": Color("#EE8398"),
@@ -207,9 +217,9 @@ var animals: Array = [
 		"id": "cat",
 		"name": "猫咪奈奈",
 		"trait": "活泼",
-		"pos": Vector2(24.5 * TILE_SIZE, 21.5 * TILE_SIZE),
-		"home": Vector2(24.5 * TILE_SIZE, 21.5 * TILE_SIZE),
-		"target": Vector2(24.5 * TILE_SIZE, 21.5 * TILE_SIZE),
+		"pos": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
+		"home": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
+		"target": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
 		"body_col": Color("#F5B06C"),
 		"ear_col": Color("#D97A3E"),
 		"shirt_col": Color("#74C9ED"),
@@ -225,9 +235,9 @@ var animals: Array = [
 		"id": "fox",
 		"name": "狐狸阿洛",
 		"trait": "独立",
-		"pos": Vector2(14.5 * TILE_SIZE, 16.5 * TILE_SIZE),
-		"home": Vector2(14.5 * TILE_SIZE, 16.5 * TILE_SIZE),
-		"target": Vector2(14.5 * TILE_SIZE, 16.5 * TILE_SIZE),
+		"pos": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
+		"home": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
+		"target": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
 		"body_col": Color("#F08A61"),
 		"ear_col": Color("#544A44"),
 		"shirt_col": Color("#39815D"),
@@ -243,9 +253,9 @@ var animals: Array = [
 		"id": "bear",
 		"name": "小熊布朗",
 		"trait": "憨厚",
-		"pos": Vector2(28.5 * TILE_SIZE, 19.5 * TILE_SIZE),
-		"home": Vector2(28.5 * TILE_SIZE, 19.5 * TILE_SIZE),
-		"target": Vector2(28.5 * TILE_SIZE, 19.5 * TILE_SIZE),
+		"pos": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
+		"home": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
+		"target": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
 		"body_col": Color("#B98761"),
 		"ear_col": Color("#8A5B45"),
 		"shirt_col": Color("#F5DDA1"),
@@ -261,9 +271,9 @@ var animals: Array = [
 		"id": "penguin",
 		"name": "企鹅波波",
 		"trait": "开朗",
-		"pos": Vector2(21.5 * TILE_SIZE, 31.5 * TILE_SIZE),
-		"home": Vector2(21.5 * TILE_SIZE, 31.5 * TILE_SIZE),
-		"target": Vector2(21.5 * TILE_SIZE, 31.5 * TILE_SIZE),
+		"pos": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
+		"home": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
+		"target": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
 		"body_col": Color("#5B9BD5"),
 		"ear_col": Color("#379CC9"),
 		"shirt_col": Color("#F08A61"),
@@ -512,112 +522,143 @@ func _init_default_island() -> void:
 		elevation_grid.append(e_col)
 		object_grid.append(o_col)
 
-	# 1. 构建自然的椭圆形有机岛屿海岸线（告别生硬方盒）
+	# 旧版 44×44 岛屿的核心布局整体平移 (MAP_CORE_OX, MAP_CORE_OY) 放入新地图，
+	# 保证原有建筑、广场、河道、桥梁与景观的相对关系不变，新土地在四周自然生长。
+	var ox: int = MAP_CORE_OX
+	var oy: int = MAP_CORE_OY
+
+	# 1. 更大、更有机的海岸线：西侧海湾 + 南部宽阔金沙滩
 	var center := Vector2(GRID_WIDTH * 0.5, GRID_HEIGHT * 0.5)
 	for x in range(GRID_WIDTH):
 		for y in range(GRID_HEIGHT):
 			var nx: float = (float(x) - center.x) / (GRID_WIDTH * 0.44)
-			var ny: float = (float(y) - center.y) / (GRID_HEIGHT * 0.43)
-			var wave: float = 0.06 * sin(float(x) * 0.45) + 0.06 * cos(float(y) * 0.40)
+			var ny: float = (float(y) - center.y) / (GRID_HEIGHT * 0.45)
+			var wave: float = 0.055 * sin(float(x) * 0.33) + 0.05 * cos(float(y) * 0.29) + 0.02 * sin(float(x + y) * 0.21)
 			var dist: float = sqrt(nx * nx + ny * ny) + wave
-
-			if dist > 1.02:
+			if dist > 1.04:
 				ground_grid[x][y] = GroundType.DEEP_WATER
 				elevation_grid[x][y] = 0
-			elif dist > 0.90:
+			elif dist > 0.93:
 				ground_grid[x][y] = GroundType.SHALLOW_WATER
 				elevation_grid[x][y] = 0
-			elif dist > 0.76 or (y >= 31 and dist <= 0.90):
+			elif dist > 0.86 or (y >= int(GRID_HEIGHT * 0.78) and dist <= 0.93):
 				ground_grid[x][y] = GroundType.SAND
 				elevation_grid[x][y] = 1
 			else:
 				ground_grid[x][y] = GroundType.GRASS
 				elevation_grid[x][y] = 1
 
-	# 2. 北部与东北二层翠绿高地悬崖 (x: 11..30, y: 6..12)
-	for x in range(11, 31):
-		for y in range(6, 13):
+	# 2. 中央偏北翠绿高地（原岛东北高地，瀑布落差保留）
+	for x in range(11 + ox, 31 + ox):
+		for y in range(6 + oy, 13 + oy):
 			if ground_grid[x][y] == GroundType.GRASS:
-				if not (x > 27 and y > 10):
+				if not (x > 27 + ox and y > 10 + oy):
 					elevation_grid[x][y] = 2
 
-	# 3. 蜿蜒自然的河流与内陆小湖泊（从北部高地瀑布 25,9 蜿蜒流向东南入海口）
-	for y in range(8, 37):
-		var rx: int = 25
-		if y >= 13 and y < 20: rx = 26
-		elif y >= 20 and y < 27: rx = 27
-		elif y >= 27: rx = 28
+	# 2b. 新增西侧断崖台地：给岛西增加一处可俯瞰海湾的二层高台
+	for x in range(7, 14):
+		for y in range(20, 28):
+			if ground_grid[x][y] != GroundType.GRASS:
+				continue
+			var edge_hash: int = (x * 7 + y * 13) % 11
+			if edge_hash < 8 or (x > 11 and y > 24 and edge_hash < 10):
+				elevation_grid[x][y] = 2
+
+	# 3. 河流：自高地瀑布蜿蜒向南入海（原河道走向整体平移）
+	for y in range(8 + oy, GRID_HEIGHT):
+		var rx: int = _river_center_x(y)
 		for dx in range(2):
 			if is_valid_cell(rx + dx, y) and ground_grid[rx + dx][y] != GroundType.DEEP_WATER:
 				ground_grid[rx + dx][y] = GroundType.RIVER
 				elevation_grid[rx + dx][y] = 0
-	# 河心小湖泊 (24..28, 13..16)
-	for x in range(24, 28):
-		for y in range(14, 17):
+	# 河心小湖（原岛湖泊平移）
+	for x in range(24 + ox, 28 + ox):
+		for y in range(14 + oy, 17 + oy):
 			ground_grid[x][y] = GroundType.RIVER
 			elevation_grid[x][y] = 0
+	# 3b. 新增西部林间池塘
+	for x in range(12, 17):
+		for y in range(34, 39):
+			if ground_grid[x][y] == GroundType.GRASS:
+				ground_grid[x][y] = GroundType.RIVER
+				elevation_grid[x][y] = 0
 
-	# 4. 两座连接东西两岸的温暖木桥 + 南海岸延伸入海的木栈桥码头
-	for x in range(26, 28):
-		for y in [20, 21]:
+	# 4. 两座跨河木桥 + 南海岸观海木栈桥码头
+	for y in [30, 31]:
+		for x in [37, 38]:
 			ground_grid[x][y] = GroundType.BRIDGE
 			elevation_grid[x][y] = 1
-	for x in range(27, 29):
-		for y in [26, 27]:
+	for y in [44, 45]:
+		for x in [38, 39]:
 			ground_grid[x][y] = GroundType.BRIDGE
 			elevation_grid[x][y] = 1
-	# 南海岸观海木栈桥码头 (x: 20..21, y: 34..39)
-	for x in [20, 21]:
-		for y in range(34, 40):
+	for x in [30, 31]:
+		for y in range(50, 59):
 			ground_grid[x][y] = GroundType.BRIDGE
 			elevation_grid[x][y] = 1
 
-	# 5. 中央喷泉石板大广场 (x: 18..23, y: 19..23) 与有机连接全岛的石板路/木板路网络
-	for x in range(18, 24):
-		for y in range(19, 24):
+	# 5. 中央喷泉石板广场 + 全岛道路网络（原布局平移，并向新区域延伸）
+	for x in range(18 + ox, 24 + ox):
+		for y in range(19 + oy, 24 + oy):
 			ground_grid[x][y] = GroundType.STONE_PATH
-	# 东西主干道（连接西侧家园、中央广场、木桥与东侧杂货铺）
-	for x in range(13, 32):
-		for y in [20, 21]:
+	# 东西主干道：西侧草原 -> 家园 -> 广场 -> 木桥 -> 东侧果园
+	for x in range(10, 53):
+		for y in [30, 31]:
 			if ground_grid[x][y] != GroundType.BRIDGE:
 				ground_grid[x][y] = GroundType.STONE_PATH
-	# 南向景观木板大道（从中央广场直通南海滩与码头）
-	for y in range(24, 34):
-		for x in [20, 21]:
-			if ground_grid[x][y] == GroundType.GRASS or ground_grid[x][y] == GroundType.SAND:
+	# 南北景观木板大道：广场 -> 南海滩 -> 码头
+	for y in range(34, 45):
+		for x in [30, 31]:
+			if ground_grid[x][y] in [GroundType.GRASS, GroundType.SAND]:
+				ground_grid[x][y] = GroundType.WOOD_PATH
+	# 广场北侧小径，通向高地脚下
+	for y in range(22, 30):
+		for x in [31, 32]:
+			if ground_grid[x][y] == GroundType.GRASS:
+				ground_grid[x][y] = GroundType.STONE_PATH
+	# 东侧果园小径
+	for x in range(47, 49):
+		for y in range(20, 31):
+			if ground_grid[x][y] == GroundType.GRASS:
+				ground_grid[x][y] = GroundType.STONE_PATH
+	# 西侧草原木板小径，连接主路与南岸
+	for x in range(6, 30):
+		for y in [38, 39]:
+			if ground_grid[x][y] == GroundType.GRASS:
 				ground_grid[x][y] = GroundType.WOOD_PATH
 
-	# 6. 放置核心建筑、公共设施与生活叙事细节
-	object_grid[15][18] = ObjectType.HOUSE            # 玩家红顶温馨小屋
-	object_grid[16][19] = ObjectType.MAILBOX          # 门前珊瑚红信箱
-	object_grid[12][23] = ObjectType.VILLAGER_HOUSE   # 动物邻居小黄屋
-	object_grid[30][18] = ObjectType.SHOP             # 河东岸海岛杂货铺
-	object_grid[20][21] = ObjectType.FOUNTAIN         # 广场中央动态喷泉
-	object_grid[18][19] = ObjectType.LAMP             # 广场四角复古街灯
-	object_grid[23][19] = ObjectType.LAMP
-	object_grid[18][23] = ObjectType.FLOWER_PLANTER   # 广场花坛盆栽
-	object_grid[23][23] = ObjectType.FLOWER_PLANTER
-	object_grid[19][19] = ObjectType.BENCH            # 广场木长椅
-	object_grid[22][19] = ObjectType.BENCH
-	object_grid[19][24] = ObjectType.SIGNBOARD        # 路口木质指示牌
+	# 6. 核心建筑、公共设施与生活叙事细节（原坐标 + 偏移）
+	object_grid[15 + ox][18 + oy] = ObjectType.HOUSE
+	object_grid[16 + ox][19 + oy] = ObjectType.MAILBOX
+	object_grid[12 + ox][23 + oy] = ObjectType.VILLAGER_HOUSE
+	object_grid[30 + ox][18 + oy] = ObjectType.SHOP
+	object_grid[20 + ox][21 + oy] = ObjectType.FOUNTAIN
+	object_grid[18 + ox][19 + oy] = ObjectType.LAMP
+	object_grid[23 + ox][19 + oy] = ObjectType.LAMP
+	object_grid[18 + ox][23 + oy] = ObjectType.FLOWER_PLANTER
+	object_grid[23 + ox][23 + oy] = ObjectType.FLOWER_PLANTER
+	object_grid[19 + ox][19 + oy] = ObjectType.BENCH
+	object_grid[22 + ox][19 + oy] = ObjectType.BENCH
+	object_grid[19 + ox][24 + oy] = ObjectType.SIGNBOARD
 
 	# 家园小花园围栏与耕地
 	for fx in [13, 14, 17]:
-		object_grid[fx][19] = ObjectType.FENCE
-	ground_grid[13][17] = GroundType.TILLED_SOIL
-	ground_grid[14][17] = GroundType.TILLED_SOIL
-	object_grid[13][17] = ObjectType.FLOWER_PINK
-	object_grid[14][17] = ObjectType.FLOWER_WATERED
+		object_grid[fx + ox][19 + oy] = ObjectType.FENCE
+	ground_grid[13 + ox][17 + oy] = GroundType.TILLED_SOIL
+	ground_grid[14 + ox][17 + oy] = GroundType.TILLED_SOIL
+	object_grid[13 + ox][17 + oy] = ObjectType.FLOWER_PINK
+	object_grid[14 + ox][17 + oy] = ObjectType.FLOWER_WATERED
 
-	# 7. 分区域布置差异化自然生态（告别单调机械重复）
-	# (A) 西北松林与高地生态区：松树、橡树、蘑菇、树桩、岩石、花丛
+	# 7. 原岛分区植被（坐标整体平移）
 	var pine_coords: Array[Vector2i] = [
 		Vector2i(10, 11), Vector2i(12, 9), Vector2i(15, 8), Vector2i(18, 8),
 		Vector2i(21, 8), Vector2i(28, 9), Vector2i(9, 14), Vector2i(11, 13)
 	]
 	for c in pine_coords:
-		if ground_grid[c.x][c.y] == GroundType.GRASS:
-			object_grid[c.x][c.y] = ObjectType.TREE_PINE
+		var px: int = c.x + ox
+		var py: int = c.y + oy
+		if ground_grid[px][py] == GroundType.GRASS:
+			object_grid[px][py] = ObjectType.TREE_PINE
 
 	var oak_coords: Array[Vector2i] = [
 		Vector2i(14, 11), Vector2i(19, 11), Vector2i(10, 17), Vector2i(10, 21),
@@ -625,49 +666,115 @@ func _init_default_island() -> void:
 		Vector2i(31, 25), Vector2i(25, 29)
 	]
 	for c in oak_coords:
-		if ground_grid[c.x][c.y] == GroundType.GRASS and object_grid[c.x][c.y] == ObjectType.NONE:
-			object_grid[c.x][c.y] = ObjectType.TREE_OAK
+		var px2: int = c.x + ox
+		var py2: int = c.y + oy
+		if ground_grid[px2][py2] == GroundType.GRASS and object_grid[px2][py2] == ObjectType.NONE:
+			object_grid[px2][py2] = ObjectType.TREE_OAK
 
-	# (B) 南海岸热带椰林与沙滩贝壳区
 	var palm_coords: Array[Vector2i] = [
 		Vector2i(14, 31), Vector2i(17, 32), Vector2i(24, 32), Vector2i(30, 30), Vector2i(12, 29)
 	]
 	for c in palm_coords:
-		if ground_grid[c.x][c.y] in [GroundType.SAND, GroundType.GRASS] and object_grid[c.x][c.y] == ObjectType.NONE:
-			object_grid[c.x][c.y] = ObjectType.TREE_PALM
+		var px3: int = c.x + ox
+		var py3: int = c.y + oy
+		if ground_grid[px3][py3] in [GroundType.SAND, GroundType.GRASS] and object_grid[px3][py3] == ObjectType.NONE:
+			object_grid[px3][py3] = ObjectType.TREE_PALM
 
-	# 点缀岩石、树桩、林间蘑菇、灌木、双色花朵与海滩贝壳
-	object_grid[11][15] = ObjectType.STUMP
-	object_grid[12][14] = ObjectType.MUSHROOM
-	object_grid[16][10] = ObjectType.MUSHROOM
-	object_grid[23][11] = ObjectType.ROCK
-	object_grid[32][18] = ObjectType.ROCK
-	object_grid[15][33] = ObjectType.SHELL
-	object_grid[18][34] = ObjectType.SHELL
-	object_grid[23][34] = ObjectType.SHELL
-	object_grid[26][33] = ObjectType.SHELL
-	object_grid[19][32] = ObjectType.BENCH
+	object_grid[11 + ox][15 + oy] = ObjectType.STUMP
+	object_grid[12 + ox][14 + oy] = ObjectType.MUSHROOM
+	object_grid[16 + ox][10 + oy] = ObjectType.MUSHROOM
+	object_grid[23 + ox][11 + oy] = ObjectType.ROCK
+	object_grid[32 + ox][18 + oy] = ObjectType.ROCK
+	object_grid[15 + ox][33 + oy] = ObjectType.SHELL
+	object_grid[18 + ox][34 + oy] = ObjectType.SHELL
+	object_grid[23 + ox][34 + oy] = ObjectType.SHELL
+	object_grid[26 + ox][33 + oy] = ObjectType.SHELL
+	object_grid[19 + ox][32 + oy] = ObjectType.BENCH
 
-	for x in range(8, GRID_WIDTH - 8):
-		for y in range(8, GRID_HEIGHT - 8):
-			if ground_grid[x][y] == GroundType.GRASS and object_grid[x][y] == ObjectType.NONE:
-				if abs(x - 20) <= 3 and abs(y - 21) <= 3:
-					continue
-				var hash_v: int = (x * 13 + y * 29) % 47
-				if hash_v == 0:
-					object_grid[x][y] = ObjectType.FLOWER_PINK
-				elif hash_v == 1:
-					object_grid[x][y] = ObjectType.FLOWER_YELLOW
-				elif hash_v == 2:
-					object_grid[x][y] = ObjectType.BUSH
-				elif hash_v == 3 and x > 28:
-					object_grid[x][y] = ObjectType.WEED
+	# 7b. 新增北部森林：松树与橡树混生，留出若干林间空地作为探索路线
+	for x in range(16, 43):
+		for y in range(5, 18):
+			if ground_grid[x][y] != GroundType.GRASS or object_grid[x][y] != ObjectType.NONE:
+				continue
+			if elevation_grid[x][y] == 2:
+				continue
+			var h: int = (x * 17 + y * 31) % 23
+			if h == 0 or h == 5:
+				object_grid[x][y] = ObjectType.TREE_PINE
+			elif h == 9:
+				object_grid[x][y] = ObjectType.TREE_OAK
+			elif h == 12:
+				object_grid[x][y] = ObjectType.BUSH
+			elif h == 15:
+				object_grid[x][y] = ObjectType.MUSHROOM
 
-	player_pos = Vector2(21.5 * TILE_SIZE, 22.5 * TILE_SIZE)
+	# 7c. 新增东部果园：成排果树 + 少量花丛，提供采集与装饰素材
+	for x in range(44, 56):
+		for y in range(18, 31):
+			if ground_grid[x][y] != GroundType.GRASS or object_grid[x][y] != ObjectType.NONE:
+				continue
+			if (x - 44) % 3 == 0 and (y - 18) % 3 == 0:
+				object_grid[x][y] = ObjectType.TREE_OAK
+			elif (x * 3 + y * 5) % 19 == 0:
+				object_grid[x][y] = ObjectType.FLOWER_PINK
+
+	# 7d. 新增西部草原：大面积可建造空地，只做极轻点缀
+	for x in range(6, 20):
+		for y in range(22, 46):
+			if ground_grid[x][y] != GroundType.GRASS or object_grid[x][y] != ObjectType.NONE:
+				continue
+			if elevation_grid[x][y] == 2:
+				continue
+			var hh: int = (x * 29 + y * 11) % 37
+			if hh == 3:
+				object_grid[x][y] = ObjectType.FLOWER_YELLOW
+			elif hh == 7:
+				object_grid[x][y] = ObjectType.BUSH
+
+	# 7e. 新增东南半岛沙滩：椰林与贝壳
+	for x in range(34, 58):
+		for y in range(44, GRID_HEIGHT - 5):
+			if ground_grid[x][y] != GroundType.SAND or object_grid[x][y] != ObjectType.NONE:
+				continue
+			var hp: int = (x * 13 + y * 7) % 29
+			if hp == 0:
+				object_grid[x][y] = ObjectType.TREE_PALM
+			elif hp == 5:
+				object_grid[x][y] = ObjectType.SHELL
+
+	# 8. 全岛花草点缀（避开广场与主要道路）
+	for x in range(6, GRID_WIDTH - 6):
+		for y in range(6, GRID_HEIGHT - 6):
+			if ground_grid[x][y] != GroundType.GRASS or object_grid[x][y] != ObjectType.NONE:
+				continue
+			if abs(x - (20 + ox)) <= 3 and abs(y - (21 + oy)) <= 3:
+				continue
+			var hash_v: int = (x * 13 + y * 29) % 47
+			if hash_v == 0:
+				object_grid[x][y] = ObjectType.FLOWER_PINK
+			elif hash_v == 1:
+				object_grid[x][y] = ObjectType.FLOWER_YELLOW
+			elif hash_v == 2:
+				object_grid[x][y] = ObjectType.BUSH
+			elif hash_v == 3 and x > 36:
+				object_grid[x][y] = ObjectType.WEED
+
+	player_pos = Vector2((21.5 + ox) * TILE_SIZE, (22.5 + oy) * TILE_SIZE)
 	player_facing = Vector2.DOWN
 	undo_stack.clear()
 	redo_stack.clear()
 	queue_redraw()
+
+func _river_center_x(y: int) -> int:
+	var oy: int = MAP_CORE_OY
+	var ox: int = MAP_CORE_OX
+	if y < 13 + oy:
+		return 25 + ox
+	elif y < 20 + oy:
+		return 26 + ox
+	elif y < 27 + oy:
+		return 27 + ox
+	return 28 + ox
 
 func _init_default_inventory() -> void:
 	coins = 1800
@@ -723,23 +830,35 @@ func _physics_process(delta: float) -> void:
 	if tool_swing_timer > 0.0:
 		tool_swing_timer = maxf(0.0, tool_swing_timer - delta)
 
+	var move_dir: Vector2 = Vector2.ZERO
 	if game_state == GameState.EXPLORE_MODE:
 		var kb_input := Vector2(
 			Input.get_action_strength("ui_right") - Input.get_action_strength("ui_left"),
 			Input.get_action_strength("ui_down") - Input.get_action_strength("ui_up")
 		)
-		var move_dir: Vector2 = joy_vector if joy_vector.length() > 0.05 else kb_input.limit_length(1.0)
+		# 输入优先级：摇杆 > 键盘 > 点击寻路
+		if joy_vector.length() > 0.05:
+			_cancel_auto_path()
+			move_dir = joy_vector.normalized()
+		elif kb_input.length() > 0.05:
+			_cancel_auto_path()
+			move_dir = kb_input.normalized()
+		elif not auto_path.is_empty():
+			move_dir = _advance_auto_path(delta)
 
 		if move_dir.length() > 0.05:
-			player_facing = move_dir.normalized()
+			player_facing = move_dir
 			walk_anim_time += delta * 10.0
 			var spd: float = BASE_MOVE_SPEED * setting_move_speed_scale
 			_move_player_with_collision(move_dir * spd * delta)
-			camera.position = player_pos
 			if hud_overlay_draw != null:
 				hud_overlay_draw.queue_redraw()
 		elif walk_anim_time != 0.0:
 			walk_anim_time = 0.0
+
+	# 摄像机平滑跟随玩家；岛建的“单指移视角”模式下交给玩家自己控制
+	if camera != null and not (game_state == GameState.BUILD_MODE and is_camera_pan_mode):
+		camera.position = player_pos
 
 	_update_animals(delta)
 	queue_redraw()
@@ -1153,6 +1272,7 @@ func _consume_item(item_id: String, amount: int) -> void:
 
 func _switch_game_state(new_state: int) -> void:
 	_reset_touch_states()
+	_cancel_auto_path()
 	game_state = new_state
 
 	if title_panel != null:
@@ -1417,9 +1537,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event is InputEventScreenTouch:
 			var touch := event as InputEventScreenTouch
 			if touch.pressed:
-				if joy_touch_index == -1 and touch.position.x < 220.0 and touch.position.y > 120.0 and touch.position.y < vp_size.y - 24.0:
+				# 摇杆热区：以摇杆底座为中心的圆形区域，其余地面点击一律走寻路
+				if joy_touch_index == -1 and touch.position.distance_to(joy_center) <= joy_radius * 2.0:
 					joy_touch_index = touch.index
+					_cancel_auto_path()
 					_update_joystick(touch.position)
+				elif joy_touch_index == -1:
+					_handle_ground_click(touch.position)
 			else:
 				if touch.index == joy_touch_index:
 					joy_touch_index = -1
@@ -1504,12 +1628,212 @@ func _update_pending_box_from_drag() -> void:
 	if build_confirm_box_btn != null:
 		build_confirm_box_btn.visible = true
 
+# ==============================================================================
+# 点击地面自动寻路（A*，64×64 网格，八方向，禁止贴角穿墙，支持坡道高度）
+# ==============================================================================
+const PATH_DIRS: Array[Vector2i] = [
+	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+	Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)
+]
+
+func _cancel_auto_path() -> void:
+	if auto_path.is_empty() and path_target_cell == Vector2i(-1, -1):
+		return
+	auto_path.clear()
+	path_target_cell = Vector2i(-1, -1)
+	path_stuck_time = 0.0
+	queue_redraw()
+
+func _advance_auto_path(delta: float) -> Vector2:
+	# 卡住检测：连续 0.8 秒没有位移就放弃本次寻路，避免原地抖动
+	if player_pos.distance_to(path_last_pos) < 0.35:
+		path_stuck_time += delta
+		if path_stuck_time > 0.8:
+			_cancel_auto_path()
+			_show_toast("前面被挡住了，换个位置试试")
+			return Vector2.ZERO
+	else:
+		path_stuck_time = 0.0
+		path_last_pos = player_pos
+
+	while not auto_path.is_empty():
+		var target := Vector2(auto_path[0]) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
+		var to_target: Vector2 = target - player_pos
+		if to_target.length() <= 2.5:
+			auto_path.pop_front()
+			continue
+		return to_target.normalized()
+
+	if path_target_cell != Vector2i(-1, -1):
+		path_target_cell = Vector2i(-1, -1)
+		queue_redraw()
+	return Vector2.ZERO
+
+func _handle_ground_click(screen_pos: Vector2) -> void:
+	var world_pt: Vector2 = get_canvas_transform().affine_inverse() * screen_pos
+	var clicked: Vector2i = world_to_grid(world_pt)
+	var start: Vector2i = world_to_grid(player_pos)
+	var goal: Vector2i = clicked
+
+	if not is_cell_walkable(goal.x, goal.y):
+		goal = _nearest_walkable_cell(clicked, 5)
+		if goal.x < 0:
+			_show_toast("那里过不去，换一块地面试试")
+			return
+
+	if goal == start:
+		_cancel_auto_path()
+		return
+
+	var path: Array[Vector2i] = find_path(start, goal)
+	if path.is_empty():
+		_show_toast("这里走不过去哦～")
+		return
+
+	auto_path = path
+	path_target_cell = goal
+	path_stuck_time = 0.0
+	path_last_pos = player_pos
+	queue_redraw()
+
+func _nearest_walkable_cell(from_cell: Vector2i, max_radius: int) -> Vector2i:
+	for r in range(0, max_radius + 1):
+		for dx in range(-r, r + 1):
+			for dy in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				var nx: int = from_cell.x + dx
+				var ny: int = from_cell.y + dy
+				if is_cell_walkable(nx, ny):
+					return Vector2i(nx, ny)
+	return Vector2i(-1, -1)
+
+func _path_heap_push(heap: Array, f: float, idx: int) -> void:
+	heap.append([f, idx])
+	var i: int = heap.size() - 1
+	while i > 0:
+		var parent: int = (i - 1) / 2
+		if float(heap[parent][0]) <= float(heap[i][0]):
+			break
+		var tmp: Array = heap[parent]
+		heap[parent] = heap[i]
+		heap[i] = tmp
+		i = parent
+
+func _path_heap_pop(heap: Array) -> Array:
+	var top: Array = heap[0]
+	var last: Array = heap.pop_back()
+	if heap.size() > 0:
+		heap[0] = last
+		var i: int = 0
+		var n: int = heap.size()
+		while true:
+			var l: int = i * 2 + 1
+			var r: int = l + 1
+			var m: int = i
+			if l < n and float(heap[l][0]) < float(heap[m][0]):
+				m = l
+			if r < n and float(heap[r][0]) < float(heap[m][0]):
+				m = r
+			if m == i:
+				break
+			var tmp: Array = heap[m]
+			heap[m] = heap[i]
+			heap[i] = tmp
+			i = m
+	return top
+
+func _path_heuristic(a: Vector2i, b: Vector2i) -> float:
+	var dx: int = absi(a.x - b.x)
+	var dy: int = absi(a.y - b.y)
+	return 1.4142 * float(mini(dx, dy)) + float(maxi(dx, dy) - mini(dx, dy))
+
+func find_path(start_cell: Vector2i, goal_cell: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not is_valid_cell(start_cell.x, start_cell.y):
+		return result
+	if not is_cell_walkable(goal_cell.x, goal_cell.y):
+		return result
+	if start_cell == goal_cell:
+		return result
+
+	var total: int = GRID_WIDTH * GRID_HEIGHT
+	var g_cost := PackedFloat32Array()
+	g_cost.resize(total)
+	g_cost.fill(INF)
+	var came := PackedInt32Array()
+	came.resize(total)
+	came.fill(-1)
+	var closed := PackedByteArray()
+	closed.resize(total)
+
+	var start_idx: int = start_cell.y * GRID_WIDTH + start_cell.x
+	var goal_idx: int = goal_cell.y * GRID_WIDTH + goal_cell.x
+	g_cost[start_idx] = 0.0
+
+	var heap: Array = []
+	_path_heap_push(heap, _path_heuristic(start_cell, goal_cell), start_idx)
+	var found: bool = false
+
+	while not heap.is_empty():
+		var cur: Array = _path_heap_pop(heap)
+		var ci: int = int(cur[1])
+		if closed[ci] == 1:
+			continue
+		closed[ci] = 1
+		if ci == goal_idx:
+			found = true
+			break
+
+		var cx: int = ci % GRID_WIDTH
+		var cy: int = ci / GRID_WIDTH
+		for d in PATH_DIRS:
+			var nx: int = cx + d.x
+			var ny: int = cy + d.y
+			if not is_valid_cell(nx, ny):
+				continue
+			var ni: int = ny * GRID_WIDTH + nx
+			if closed[ni] == 1:
+				continue
+			if not can_step_between(Vector2i(cx, cy), Vector2i(nx, ny)):
+				continue
+			var diagonal: bool = d.x != 0 and d.y != 0
+			if diagonal:
+				# 禁止从两堵墙的夹角对角穿过去
+				if not is_cell_walkable(cx + d.x, cy) or not is_cell_walkable(cx, cy + d.y):
+					continue
+			var step_cost: float = 1.4142 if diagonal else 1.0
+			var ng: float = g_cost[ci] + step_cost
+			if ng < g_cost[ni] - 0.0001:
+				g_cost[ni] = ng
+				came[ni] = ci
+				_path_heap_push(heap, ng + _path_heuristic(Vector2i(nx, ny), goal_cell), ni)
+
+	if not found:
+		return result
+
+	var rev: Array[Vector2i] = []
+	var walk: int = goal_idx
+	while walk != -1 and walk != start_idx:
+		rev.append(Vector2i(walk % GRID_WIDTH, walk / GRID_WIDTH))
+		walk = came[walk]
+	rev.reverse()
+	for c in rev:
+		result.append(c)
+	return result
+
 func _update_joystick(touch_pos: Vector2) -> void:
 	var offset: Vector2 = touch_pos - joy_center
 	if offset.length() > joy_radius:
 		offset = offset.normalized() * joy_radius
 	joy_knob_pos = joy_center + offset
-	joy_vector = offset / joy_radius
+	# 死区 + 八方向吸附：斜向和直向速度一致，也不会出现手指微抖导致角色乱走
+	if offset.length() < joy_radius * 0.28:
+		joy_vector = Vector2.ZERO
+	else:
+		var ang: float = atan2(offset.y, offset.x)
+		var snapped: float = round(ang / (PI / 4.0)) * (PI / 4.0)
+		joy_vector = Vector2(cos(snapped), sin(snapped))
 	if hud_overlay_draw != null:
 		hud_overlay_draw.queue_redraw()
 
@@ -1517,20 +1841,43 @@ func _update_joystick(touch_pos: Vector2) -> void:
 # 《小岛日记》多层 Y-Sort 绘本渲染引擎（彻底消除边缘灰块、支持树冠遮挡与地形自动衔接）
 # ==============================================================================
 
+# 只绘制摄像机可视范围（含 2 格安全边），避免大地图每帧遍历全部格子
+func _visible_world_rect() -> Rect2:
+	var inv: Transform2D = get_viewport().get_canvas_transform().affine_inverse()
+	var a: Vector2 = inv * Vector2.ZERO
+	var b: Vector2 = inv * get_viewport_rect().size
+	var top_left: Vector2 = Vector2(minf(a.x, b.x), minf(a.y, b.y))
+	var bottom_right: Vector2 = Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
+	return Rect2(top_left, bottom_right - top_left)
+
+func _visible_cell_rect(margin: int = 2) -> Rect2i:
+	var wr: Rect2 = _visible_world_rect()
+	var x0: int = clampi(int(floor(wr.position.x / TILE_SIZE)) - margin, 0, GRID_WIDTH)
+	var y0: int = clampi(int(floor(wr.position.y / TILE_SIZE)) - margin, 0, GRID_HEIGHT)
+	var x1: int = clampi(int(ceil(wr.end.x / TILE_SIZE)) + margin, 0, GRID_WIDTH)
+	var y1: int = clampi(int(ceil(wr.end.y / TILE_SIZE)) + margin, 0, GRID_HEIGHT)
+	return Rect2i(x0, y0, maxi(0, x1 - x0), maxi(0, y1 - y0))
+
 func _draw() -> void:
-	# 0. 绘制无限延伸的广阔海洋背景与动态海浪（覆盖 [-28..GRID_WIDTH+28]，彻底消灭任何超宽屏灰色边缘）
-	var sea_rect := Rect2(-28 * TILE_SIZE, -20 * TILE_SIZE, (GRID_WIDTH + 56) * TILE_SIZE, (GRID_HEIGHT + 40) * TILE_SIZE)
-	draw_rect(sea_rect, PAL_OCEAN_BLUE, true)
-	for wx in range(-18, GRID_WIDTH + 18, 3):
-		for wy in range(-10, GRID_HEIGHT + 10, 3):
+	var vis: Rect2i = _visible_cell_rect(2)
+	var view_world: Rect2 = _visible_world_rect()
+
+	# 0. 海洋背景：只铺满当前可视区域，边缘随镜头自然延伸
+	draw_rect(view_world.grow(32.0), PAL_OCEAN_BLUE, true)
+	var usea_x0: int = int(floor(view_world.position.x / TILE_SIZE)) - 3
+	var usea_y0: int = int(floor(view_world.position.y / TILE_SIZE)) - 3
+	var usea_x1: int = int(ceil(view_world.end.x / TILE_SIZE)) + 3
+	var usea_y1: int = int(ceil(view_world.end.y / TILE_SIZE)) + 3
+	for wx in range(usea_x0, usea_x1, 3):
+		for wy in range(usea_y0, usea_y1, 3):
 			if wx >= 2 and wx < GRID_WIDTH - 2 and wy >= 2 and wy < GRID_HEIGHT - 2:
 				continue
 			var w_shift: float = sin(env_anim_time * 2.0 + float(wx + wy)) * 2.5
 			draw_rect(Rect2(wx * TILE_SIZE + 3 + w_shift, wy * TILE_SIZE + 6, 7, 2), Color(1.0, 1.0, 1.0, 0.28), true)
 
-	# 1. 绘制岛屿网格地形、岸线过渡、河岸、高地瀑布与道路连接
-	for x in range(GRID_WIDTH):
-		for y in range(GRID_HEIGHT):
+	# 1. 绘制岛屿网格地形、岸线过渡、河岸、高地瀑布与道路连接（仅可视区域）
+	for x in range(vis.position.x, vis.position.x + vis.size.x):
+		for y in range(vis.position.y, vis.position.y + vis.size.y):
 			var rect := Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
 			var g_type: int = ground_grid[x][y]
 			var elev: int = elevation_grid[x][y]
@@ -1579,7 +1926,7 @@ func _draw() -> void:
 				if (x + y) % 2 == 0:
 					draw_rect(Rect2(rect.position.x + 4 + wave_shift, rect.position.y + 7, 6, 2), Color(1.0, 1.0, 1.0, 0.58), true)
 				# 北部高地交界处绘制飞流直下的白色瀑布水花 (y == 12)
-				if g_type == GroundType.RIVER and y >= 11 and y <= 13:
+				if g_type == GroundType.RIVER and y >= 11 + MAP_CORE_OY and y <= 13 + MAP_CORE_OY:
 					var wf_off: float = fmod(env_anim_time * 18.0, 6.0)
 					draw_rect(Rect2(rect.position.x + 2, rect.position.y, TILE_SIZE - 4, TILE_SIZE), Color(0.85, 0.96, 1.0, 0.85), true)
 					draw_rect(Rect2(rect.position.x + 4, rect.position.y + wf_off, 8, 3), Color.WHITE, true)
@@ -1624,8 +1971,8 @@ func _draw() -> void:
 
 	# 3. 严格按 Y 轴深度排序（Y-Sorting）：逐行绘制地面物件、树干、建筑、小动物与玩家角色
 	var p_row: int = clampi(int(floor(player_pos.y / TILE_SIZE)), 0, GRID_HEIGHT - 1)
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
+	for y in range(vis.position.y, vis.position.y + vis.size.y):
+		for x in range(vis.position.x, vis.position.x + vis.size.x):
 			var o_type: int = object_grid[x][y]
 			if o_type != ObjectType.NONE:
 				_draw_storybook_object_base(Vector2(x * TILE_SIZE, y * TILE_SIZE), o_type)
@@ -1639,11 +1986,22 @@ func _draw() -> void:
 			_draw_storybook_player()
 
 	# 4. 顶层树冠与屋顶遮挡层（Tree Canopy Overlay Layer）：让角色走在树后时呈现真实空间层次
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
+	for y in range(vis.position.y, vis.position.y + vis.size.y):
+		for x in range(vis.position.x, vis.position.x + vis.size.x):
 			var o_type: int = object_grid[x][y]
 			if o_type in [ObjectType.TREE_OAK, ObjectType.TREE_PINE, ObjectType.TREE_PALM]:
 				_draw_tree_canopy_layer(Vector2(x * TILE_SIZE, y * TILE_SIZE), o_type)
+
+	# 4.5 点击寻路的路径预览与目标点脉冲
+	if game_state == GameState.EXPLORE_MODE and path_target_cell != Vector2i(-1, -1):
+		var pulse: float = 0.5 + 0.5 * sin(env_anim_time * 4.0)
+		for i in range(auto_path.size()):
+			var dot := Vector2(auto_path[i]) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
+			if i % 2 == 0:
+				draw_circle(dot, 1.2, Color(1.0, 1.0, 1.0, 0.28))
+		var target_px := Vector2(path_target_cell) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
+		draw_arc(target_px, 5.5 + pulse * 3.0, 0.0, TAU, 20, Color(1.0, 0.98, 0.86, 0.85), 1.6)
+		draw_circle(target_px, 1.8, Color(1.0, 0.98, 0.86, 0.9))
 
 	# 5. 绘制飘落花瓣/树叶、夜晚萤火虫与操作爆发粒子
 	_draw_environment_particles()
@@ -2564,6 +2922,7 @@ func _create_modal_base(title_str: String, icon_key: String, panel_size: Vector2
 
 func _open_modal(modal: Control) -> void:
 	_reset_touch_states()
+	_cancel_auto_path()
 	if active_modal != null:
 		active_modal.visible = false
 	active_modal = modal
@@ -2910,13 +3269,14 @@ func _on_minimap_gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
 		map_pan_offset += drag.relative
-		var max_pan: float = 120.0 * map_zoom
+		var max_pan: float = 160.0 * map_zoom
 		map_pan_offset.x = clampf(map_pan_offset.x, -max_pan, max_pan)
 		map_pan_offset.y = clampf(map_pan_offset.y, -max_pan, max_pan)
 		map_canvas.queue_redraw()
 
 func _on_draw_realtime_minimap() -> void:
-	var cell_px: float = 5.2 * map_zoom
+	var fit_px: float = minf(map_canvas.size.x / float(GRID_WIDTH), map_canvas.size.y / float(GRID_HEIGHT))
+	var cell_px: float = fit_px * map_zoom
 	var total_w: float = GRID_WIDTH * cell_px
 	var total_h: float = GRID_HEIGHT * cell_px
 	var start_origin: Vector2 = (map_canvas.size - Vector2(total_w, total_h)) * 0.5 + map_pan_offset
@@ -3204,6 +3564,18 @@ func _load_game() -> void:
 		setting_camera_zoom = clampf(float(st.get("camera_zoom", 1.0)), 0.7, 2.0)
 		setting_move_speed_scale = clampf(float(st.get("move_speed_scale", 1.0)), 0.6, 1.6)
 		setting_show_grid_in_build = bool(st.get("show_grid_in_build", true))
+
+	# 旧版 44×44 地图存档：地图结构变了，保留进度（金币/背包/好感/设置），岛屿按新版本重建
+	var legacy_map: bool = false
+	if data.has("ground_grid") and typeof(data["ground_grid"]) == TYPE_ARRAY:
+		if (data["ground_grid"] as Array).size() == LEGACY_GRID_SIZE:
+			legacy_map = true
+	if legacy_map:
+		var legacy_copy: String = "user://little_island_diary_save_legacy44.json"
+		if FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists(legacy_copy):
+			DirAccess.copy_absolute(ProjectSettings.globalize_path(SAVE_PATH), ProjectSettings.globalize_path(legacy_copy))
+		_init_default_island()
+		_show_toast("旧版 44×44 地图存档：进度已保留，岛屿已扩建为 64×64（旧档另存为 legacy44）")
 
 	if _grid_shape_ok(data.get("ground_grid", null)) \
 		and _grid_shape_ok(data.get("elevation_grid", null)) \
