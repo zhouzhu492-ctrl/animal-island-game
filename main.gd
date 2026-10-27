@@ -30,7 +30,7 @@ const TILE_SIZE: int = 16
 const SAVE_PATH: String = "user://little_island_diary_save_v2.json"
 const TEMP_SAVE_PATH: String = "user://little_island_diary_save_v2.tmp"
 const BAK_SAVE_PATH: String = "user://little_island_diary_save_v2.bak"
-const SAVE_VERSION: int = 8
+const SAVE_VERSION: int = 9
 
 # --- 《小岛日记》V1.0 核心锁定色板 ---
 const PAL_CREAM      := Color("#FFF2D6")
@@ -109,10 +109,51 @@ const ICON_PATHS: Dictionary = {
 	"redo_ui":        "res://sprites/ui/redo_ui.png",
 	"grass_ui":       "res://sprites/ui/grass_ui.png",
 	"river_ui":       "res://sprites/ui/river_ui.png",
-	"move_ui":        "res://sprites/ui/move_ui.png"
+	"move_ui":        "res://sprites/ui/move_ui.png",
+
+	# 室内外精致像素家具与设施贴图 (res://sprites/furniture/)
+	"bed":            "res://sprites/furniture/bed.png",
+	"sofa":           "res://sprites/furniture/sofa.png",
+	"table":          "res://sprites/furniture/table.png",
+	"chair":          "res://sprites/furniture/chair.png",
+	"bookshelf":      "res://sprites/furniture/bookshelf.png",
+	"lamp":           "res://sprites/furniture/lamp.png",
+	"rug":            "res://sprites/furniture/rug.png",
+	"wardrobe":       "res://sprites/furniture/wardrobe.png",
+	"record_player":  "res://sprites/furniture/record_player.png",
+	"storage_box":    "res://sprites/furniture/storage_box.png",
+	"display_case":   "res://sprites/furniture/display_case.png",
+	"seed_rack":      "res://sprites/furniture/seed_rack.png",
+	"shell_rack":     "res://sprites/furniture/shell_rack.png",
+	"sports_gear":    "res://sprites/furniture/sports_gear.png",
+	"map_wall":       "res://sprites/furniture/map_wall.png",
+	"stove_counter":  "res://sprites/furniture/stove_counter.png"
+}
+
+const CHAR_WALK_PATHS: Dictionary = {
+	"player": "res://sprites/characters/player_walk.png",
+	"bear":   "res://sprites/characters/bear_walk.png",
+	"cat":    "res://sprites/characters/cat_walk.png",
+	"rabbit": "res://sprites/characters/rabbit_walk.png",
+	"deer":   "res://sprites/characters/deer_walk.png",
+	"fox":    "res://sprites/characters/fox_walk.png",
+	"frog":   "res://sprites/characters/frog_walk.png",
+	"otter":  "res://sprites/characters/otter_walk.png",
+	"bird":   "res://sprites/characters/bird_walk.png"
+}
+
+const PORTRAIT_EXPRS: Array = ["neutral", "happy", "surprised", "sleepy", "shy"]
+const EXPR_CN_NAMES: Dictionary = {
+	"neutral": "普通",
+	"happy": "开心",
+	"surprised": "惊讶",
+	"sleepy": "困倦",
+	"shy": "害羞"
 }
 
 var _icon_cache: Dictionary = {}
+var _walk_tex_cache: Dictionary = {}
+var _portrait_tex_cache: Dictionary = {}
 
 enum GameState {
 	TITLE_SCREEN = 0,
@@ -166,7 +207,14 @@ enum ObjectType {
 	BOOKSHELF = 30,
 	RECORD_PLAYER = 31,
 	SHELL_SHELF = 32,
-	DINING_TABLE = 33
+	DINING_TABLE = 33,
+	BED = 34,
+	SOFA = 35,
+	CHAIR = 36,
+	WARDROBE = 37,
+	STORAGE_BOX = 38,
+	RUG = 39,
+	DISPLAY_CASE = 40
 }
 
 enum BuildTool {
@@ -207,24 +255,93 @@ const BASE_MOVE_SPEED: float = 90.0
 const COLLISION_HALF_SIZE: Vector2 = Vector2(4.2, 4.2)
 var camera: Camera2D
 
-# --- 5 位原创小动物居民 ---
+# --- 首批 8 位动物居民（熊、猫、兔子、鹿、狐狸、青蛙、海獭、小鸟） ---
+const VILLAGER_HOUSE_CELLS: Dictionary = {
+	"bear":   Vector2i(22, 33),
+	"cat":    Vector2i(18, 31),
+	"rabbit": Vector2i(16, 36),
+	"deer":   Vector2i(26, 24),
+	"fox":    Vector2i(44, 34),
+	"frog":   Vector2i(18, 42),
+	"otter":  Vector2i(34, 44),
+	"bird":   Vector2i(46, 24)
+}
+
 var animals: Array = [
 	{
+		"id": "bear",
+		"name": "小熊阿棕",
+		"species": "小熊",
+		"trait": "温和",
+		"pos": Vector2(22.5 * TILE_SIZE, 34.5 * TILE_SIZE),
+		"home": Vector2(22.5 * TILE_SIZE, 34.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
+		"body_col": Color("#B98761"),
+		"ear_col": Color("#8A5B45"),
+		"shirt_col": Color("#F5DDA1"),
+		"personality": {"social": 0.72, "curiosity": 0.65, "energy": 0.50, "calm": 0.92, "order": 0.75},
+		"interests": ["阅读", "料理"],
+		"needs": {"social": 0.60, "fun": 0.60, "energy": 0.80, "hunger": 0.70},
+		"affinity": 25,
+		"relations": {},
+		"knowledge": 2,
+		"memory": [],
+		"action": "read",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 1.2,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
+	},
+	{
+		"id": "cat",
+		"name": "小猫柒柒",
+		"species": "猫咪",
+		"trait": "独立",
+		"pos": Vector2(18.5 * TILE_SIZE, 32.5 * TILE_SIZE),
+		"home": Vector2(18.5 * TILE_SIZE, 32.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
+		"body_col": Color("#F5B06C"),
+		"ear_col": Color("#D97A3E"),
+		"shirt_col": Color("#74C9ED"),
+		"personality": {"social": 0.42, "curiosity": 0.75, "energy": 0.55, "calm": 0.88, "order": 0.68},
+		"interests": ["音乐", "阅读"],
+		"needs": {"social": 0.65, "fun": 0.58, "energy": 0.82, "hunger": 0.72},
+		"affinity": 20,
+		"relations": {},
+		"knowledge": 1,
+		"memory": [],
+		"action": "stroll",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 1.8,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
+	},
+	{
 		"id": "rabbit",
-		"name": "兔子莉莉",
+		"name": "小兔露露",
 		"species": "兔子",
-		"trait": "温柔",
-		"pos": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
-		"home": Vector2(28.5 * TILE_SIZE, 30.5 * TILE_SIZE),
+		"trait": "活泼",
+		"pos": Vector2(16.5 * TILE_SIZE, 37.5 * TILE_SIZE),
+		"home": Vector2(16.5 * TILE_SIZE, 37.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
 		"body_col": Color("#FFF9F5"),
 		"ear_col": Color("#EE8398"),
 		"shirt_col": Color("#EE8398"),
-		"personality": {"social": 0.80, "curiosity": 0.50, "energy": 0.40, "calm": 0.90, "order": 0.70},
-		"interests": ["阅读", "花"],
-		"needs": {"social": 0.55, "fun": 0.50, "energy": 0.80, "hunger": 0.75},
-		"affinity": 20,
+		"personality": {"social": 0.90, "curiosity": 0.70, "energy": 0.85, "calm": 0.55, "order": 0.65},
+		"interests": ["花", "园艺"],
+		"needs": {"social": 0.55, "fun": 0.55, "energy": 0.85, "hunger": 0.75},
+		"affinity": 25,
 		"relations": {},
-		"knowledge": 0,
+		"knowledge": 1,
 		"memory": [],
 		"action": "stroll",
 		"action_reason": "",
@@ -236,26 +353,28 @@ var animals: Array = [
 		"player_chat_cd": 0.0
 	},
 	{
-		"id": "cat",
-		"name": "猫咪奈奈",
-		"species": "猫咪",
-		"trait": "活泼",
-		"pos": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
-		"home": Vector2(34.5 * TILE_SIZE, 31.5 * TILE_SIZE),
-		"body_col": Color("#F5B06C"),
-		"ear_col": Color("#D97A3E"),
-		"shirt_col": Color("#74C9ED"),
-		"personality": {"social": 0.95, "curiosity": 0.70, "energy": 0.90, "calm": 0.30, "order": 0.40},
-		"interests": ["音乐", "运动"],
-		"needs": {"social": 0.45, "fun": 0.55, "energy": 0.85, "hunger": 0.65},
-		"affinity": 20,
+		"id": "deer",
+		"name": "小鹿森森",
+		"species": "小鹿",
+		"trait": "沉静",
+		"pos": Vector2(26.5 * TILE_SIZE, 25.5 * TILE_SIZE),
+		"home": Vector2(26.5 * TILE_SIZE, 25.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
+		"body_col": Color("#D89B65"),
+		"ear_col": Color("#9A633A"),
+		"shirt_col": Color("#39815D"),
+		"personality": {"social": 0.60, "curiosity": 0.80, "energy": 0.55, "calm": 0.95, "order": 0.82},
+		"interests": ["花", "阅读"],
+		"needs": {"social": 0.62, "fun": 0.60, "energy": 0.80, "hunger": 0.74},
+		"affinity": 22,
 		"relations": {},
-		"knowledge": 0,
+		"knowledge": 2,
 		"memory": [],
-		"action": "stroll",
+		"action": "read",
 		"action_reason": "",
 		"action_timer": 0.0,
-		"decision_timer": 2.0,
+		"decision_timer": 2.2,
 		"path": [],
 		"chat_cd": 0.0,
 		"greet_cd": 0.0,
@@ -263,77 +382,111 @@ var animals: Array = [
 	},
 	{
 		"id": "fox",
-		"name": "狐狸阿洛",
+		"name": "小狐狸阿橙",
 		"species": "狐狸",
-		"trait": "独立",
-		"pos": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
-		"home": Vector2(24.5 * TILE_SIZE, 26.5 * TILE_SIZE),
+		"trait": "机灵",
+		"pos": Vector2(44.5 * TILE_SIZE, 35.5 * TILE_SIZE),
+		"home": Vector2(44.5 * TILE_SIZE, 35.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
 		"body_col": Color("#F08A61"),
 		"ear_col": Color("#544A44"),
 		"shirt_col": Color("#39815D"),
-		"personality": {"social": 0.35, "curiosity": 0.90, "energy": 0.60, "calm": 0.80, "order": 0.50},
-		"interests": ["探索", "阅读"],
-		"needs": {"social": 0.70, "fun": 0.50, "energy": 0.75, "hunger": 0.70},
+		"personality": {"social": 0.58, "curiosity": 0.95, "energy": 0.76, "calm": 0.68, "order": 0.55},
+		"interests": ["探索", "收集"],
+		"needs": {"social": 0.65, "fun": 0.52, "energy": 0.78, "hunger": 0.70},
 		"affinity": 20,
 		"relations": {},
-		"knowledge": 0,
+		"knowledge": 2,
 		"memory": [],
 		"action": "stroll",
 		"action_reason": "",
 		"action_timer": 0.0,
-		"decision_timer": 3.0,
+		"decision_timer": 2.6,
 		"path": [],
 		"chat_cd": 0.0,
 		"greet_cd": 0.0,
 		"player_chat_cd": 0.0
 	},
 	{
-		"id": "bear",
-		"name": "小熊布朗",
-		"species": "小熊",
-		"trait": "憨厚",
-		"pos": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
-		"home": Vector2(38.5 * TILE_SIZE, 29.5 * TILE_SIZE),
-		"body_col": Color("#B98761"),
-		"ear_col": Color("#8A5B45"),
-		"shirt_col": Color("#F5DDA1"),
-		"personality": {"social": 0.70, "curiosity": 0.40, "energy": 0.50, "calm": 0.85, "order": 0.60},
-		"interests": ["料理", "花"],
-		"needs": {"social": 0.50, "fun": 0.50, "energy": 0.70, "hunger": 0.60},
-		"affinity": 20,
+		"id": "frog",
+		"name": "小青蛙呱呱",
+		"species": "青蛙",
+		"trait": "乐观",
+		"pos": Vector2(18.5 * TILE_SIZE, 43.5 * TILE_SIZE),
+		"home": Vector2(18.5 * TILE_SIZE, 43.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
+		"body_col": Color("#7BC96F"),
+		"ear_col": Color("#499B4A"),
+		"shirt_col": Color("#74C9ED"),
+		"personality": {"social": 0.82, "curiosity": 0.68, "energy": 0.92, "calm": 0.60, "order": 0.50},
+		"interests": ["运动", "海"],
+		"needs": {"social": 0.58, "fun": 0.52, "energy": 0.88, "hunger": 0.68},
+		"affinity": 22,
 		"relations": {},
-		"knowledge": 0,
+		"knowledge": 1,
 		"memory": [],
-		"action": "stroll",
+		"action": "play",
 		"action_reason": "",
 		"action_timer": 0.0,
-		"decision_timer": 1.5,
+		"decision_timer": 1.6,
 		"path": [],
 		"chat_cd": 0.0,
 		"greet_cd": 0.0,
 		"player_chat_cd": 0.0
 	},
 	{
-		"id": "penguin",
-		"name": "企鹅波波",
-		"species": "企鹅",
+		"id": "otter",
+		"name": "小海獭波波",
+		"species": "海獭",
+		"trait": "随和",
+		"pos": Vector2(34.5 * TILE_SIZE, 45.5 * TILE_SIZE),
+		"home": Vector2(34.5 * TILE_SIZE, 45.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
+		"body_col": Color("#9A6B4E"),
+		"ear_col": Color("#6D4832"),
+		"shirt_col": Color("#379CC9"),
+		"personality": {"social": 0.85, "curiosity": 0.72, "energy": 0.74, "calm": 0.80, "order": 0.60},
+		"interests": ["海", "料理"],
+		"needs": {"social": 0.56, "fun": 0.58, "energy": 0.78, "hunger": 0.66},
+		"affinity": 24,
+		"relations": {},
+		"knowledge": 1,
+		"memory": [],
+		"action": "play",
+		"action_reason": "",
+		"action_timer": 0.0,
+		"decision_timer": 2.1,
+		"path": [],
+		"chat_cd": 0.0,
+		"greet_cd": 0.0,
+		"player_chat_cd": 0.0
+	},
+	{
+		"id": "bird",
+		"name": "小鸟小羽",
+		"species": "小鸟",
 		"trait": "开朗",
-		"pos": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
-		"home": Vector2(31.5 * TILE_SIZE, 41.5 * TILE_SIZE),
-		"body_col": Color("#5B9BD5"),
-		"ear_col": Color("#379CC9"),
-		"shirt_col": Color("#F08A61"),
-		"personality": {"social": 0.90, "curiosity": 0.60, "energy": 0.80, "calm": 0.50, "order": 0.50},
-		"interests": ["海", "音乐"],
-		"needs": {"social": 0.50, "fun": 0.60, "energy": 0.75, "hunger": 0.70},
-		"affinity": 20,
+		"pos": Vector2(46.5 * TILE_SIZE, 25.5 * TILE_SIZE),
+		"home": Vector2(46.5 * TILE_SIZE, 25.5 * TILE_SIZE),
+		"facing": Vector2.DOWN,
+		"anim_t": 0.0,
+		"body_col": Color("#6EC4E8"),
+		"ear_col": Color("#3F93BD"),
+		"shirt_col": Color("#F7D460"),
+		"personality": {"social": 0.88, "curiosity": 0.82, "energy": 0.84, "calm": 0.65, "order": 0.58},
+		"interests": ["音乐", "探索"],
+		"needs": {"social": 0.52, "fun": 0.55, "energy": 0.84, "hunger": 0.72},
+		"affinity": 22,
 		"relations": {},
-		"knowledge": 0,
+		"knowledge": 1,
 		"memory": [],
 		"action": "stroll",
 		"action_reason": "",
 		"action_timer": 0.0,
-		"decision_timer": 2.5,
+		"decision_timer": 1.9,
 		"path": [],
 		"chat_cd": 0.0,
 		"greet_cd": 0.0,
@@ -350,13 +503,14 @@ const AI_DEBUG_LOG: bool = true
 
 # 行动目录：need 表示该行动主要补足的需求，poi 是目标点类型
 const RESIDENT_ACTIONS: Dictionary = {
-	"rest":   {"label": "回家休息",   "need": "energy", "poi": "home"},
-	"eat":    {"label": "找点吃的",   "need": "hunger", "poi": "food"},
-	"chat":   {"label": "找人聊天",   "need": "social", "poi": "friend"},
-	"play":   {"label": "去海边玩",   "need": "fun",    "poi": "beach"},
-	"read":   {"label": "长椅上看书", "need": "fun",    "poi": "bench"},
-	"shop":   {"label": "逛杂货铺",   "need": "fun",    "poi": "shop"},
-	"stroll": {"label": "四处散步",   "need": "fun",    "poi": "nearby"}
+	"rest":   {"label": "回家休息",     "need": "energy", "poi": "home"},
+	"eat":    {"label": "去食堂用餐",   "need": "hunger", "poi": "food"},
+	"chat":   {"label": "找朋友聊天",   "need": "social", "poi": "friend"},
+	"play":   {"label": "去海边码头",   "need": "fun",    "poi": "beach"},
+	"read":   {"label": "去图书馆看书", "need": "fun",    "poi": "library"},
+	"sports": {"label": "去运动场活动", "need": "fun",    "poi": "sports"},
+	"shop":   {"label": "逛商店看家具", "need": "fun",    "poi": "shop"},
+	"stroll": {"label": "四处散步",     "need": "fun",    "poi": "nearby"}
 }
 
 # --- 环境粒子与交互特效 ---
@@ -388,7 +542,17 @@ const ITEM_DB: Dictionary = {
 	"carrot":    {"name": "胡萝卜", "icon_key": "carrot",    "type": "crop", "sell": 60,  "desc": "脆生生的胡萝卜"},
 	"tomato":    {"name": "番茄",   "icon_key": "tomato",    "type": "crop", "sell": 90,  "desc": "红透的番茄"},
 	"pumpkin":   {"name": "南瓜",   "icon_key": "pumpkin",   "type": "crop", "sell": 150, "desc": "沉甸甸的南瓜"},
-	"strawberry":{"name": "草莓",   "icon_key": "strawberry","type": "crop", "sell": 120, "desc": "香甜的草莓"}
+	"strawberry":{"name": "草莓",   "icon_key": "strawberry","type": "crop", "sell": 120, "desc": "香甜的草莓"},
+	"bed_item":       {"name": "温暖木床",   "icon_key": "bed",           "type": "placeable", "obj_id": ObjectType.BED,           "indoor_type": "bed",           "walkable": false, "price": 320, "desc": "铺着柔软蓝白床单的木床，可在室内外放置，躺下可休息并保存进度"},
+	"sofa_item":      {"name": "暖心沙发",   "icon_key": "sofa",          "type": "placeable", "obj_id": ObjectType.SOFA,          "indoor_type": "sofa",          "walkable": false, "price": 260, "desc": "宽敞舒适的布艺软垫沙发，适合放在休息区"},
+	"table_item":     {"name": "原木书桌",   "icon_key": "table",         "type": "placeable", "obj_id": ObjectType.DINING_TABLE,  "indoor_type": "table",         "walkable": false, "price": 200, "desc": "结实的原木书桌与餐台，适合布置在工作区"},
+	"chair_item":     {"name": "木靠背椅",   "icon_key": "chair",         "type": "placeable", "obj_id": ObjectType.CHAIR,         "indoor_type": "chair",         "walkable": false, "price": 120, "desc": "带软垫的轻巧木椅，可搭配书桌使用"},
+	"bookshelf_item": {"name": "满载书架",   "icon_key": "bookshelf",     "type": "placeable", "obj_id": ObjectType.BOOKSHELF,     "indoor_type": "bookshelf",     "walkable": false, "price": 280, "desc": "摆满绘本与岛屿百科的木书架，互动可阅读增长知识"},
+	"wardrobe_item":  {"name": "双门衣柜",   "icon_key": "wardrobe",      "type": "placeable", "obj_id": ObjectType.WARDROBE,      "indoor_type": "wardrobe",      "walkable": false, "price": 300, "desc": "储物区大衣柜，互动可整理背包与收纳家具"},
+	"storage_item":   {"name": "储物木箱",   "icon_key": "storage_box",   "type": "placeable", "obj_id": ObjectType.STORAGE_BOX,   "indoor_type": "storage_box",   "walkable": false, "price": 160, "desc": "带铜扣的木质储物箱，可随时整理随身物品"},
+	"rug_item":       {"name": "织花地毯",   "icon_key": "rug",           "type": "placeable", "obj_id": ObjectType.RUG,           "indoor_type": "rug",           "walkable": true,  "price": 140, "desc": "温暖的编织地毯，铺在地面后角色依然可以在上面自由行走"},
+	"record_item":    {"name": "复古留声机", "icon_key": "record_player", "type": "placeable", "obj_id": ObjectType.RECORD_PLAYER, "indoor_type": "record_player", "walkable": false, "price": 360, "desc": "缓缓流淌海岛轻音乐的留声机，互动可获得轻快步伐加成"},
+	"display_item":   {"name": "收藏展示柜", "icon_key": "display_case",  "type": "placeable", "obj_id": ObjectType.DISPLAY_CASE,  "indoor_type": "display_case",  "walkable": false, "price": 340, "desc": "玻璃木框收藏柜，可展示海岛稀有纪念物"}
 }
 
 var inventory: Dictionary = {}
@@ -512,6 +676,12 @@ var settings_modal: Control
 var dialog_modal: Control
 var dialog_title_label: Label
 var dialog_body_label: Label
+var dialog_portrait_box: Panel
+var dialog_portrait_rect: TextureRect
+var dialog_expr_label: Label
+var dialog_expr_bar: HBoxContainer
+var dialog_char_id: String = ""
+var dialog_curr_expr: String = "neutral"
 var shop_modal: Control
 var confirm_modal: Control
 var confirm_label: Label
@@ -525,6 +695,7 @@ func _ready() -> void:
 
 	_preload_all_icons()
 	_init_default_island()
+	_init_indoor_rooms()
 	_init_residents()
 	_init_default_inventory()
 	_init_ambient_particles()
@@ -555,6 +726,50 @@ func _ready() -> void:
 func _preload_all_icons() -> void:
 	for key in ICON_PATHS.keys():
 		_get_icon_tex(key)
+	for cid in CHAR_WALK_PATHS.keys():
+		_get_walk_tex(str(cid))
+	for cid in ["bear", "cat", "rabbit", "deer", "fox", "frog", "otter", "bird"]:
+		for expr in PORTRAIT_EXPRS:
+			_get_portrait_tex(cid, str(expr))
+
+func _get_walk_tex(char_id: String) -> Texture2D:
+	var cid: String = char_id if CHAR_WALK_PATHS.has(char_id) else "bear"
+	if _walk_tex_cache.has(cid):
+		return _walk_tex_cache[cid]
+	var path: String = str(CHAR_WALK_PATHS.get(cid, ""))
+	var tex: Texture2D = null
+	if path != "" and ResourceLoader.exists(path):
+		tex = load(path) as Texture2D
+	if tex == null and path != "":
+		var abs_p: String = ProjectSettings.globalize_path(path)
+		if FileAccess.file_exists(abs_p):
+			var img := Image.load_from_file(abs_p)
+			if img != null and not img.is_empty():
+				tex = ImageTexture.create_from_image(img)
+	if tex != null:
+		_walk_tex_cache[cid] = tex
+	return tex
+
+func _get_portrait_tex(char_id: String, expr: String = "neutral") -> Texture2D:
+	var cid: String = char_id if char_id in ["bear", "cat", "rabbit", "deer", "fox", "frog", "otter", "bird"] else "bear"
+	var ex: String = expr if expr in PORTRAIT_EXPRS else "neutral"
+	var cache_key: String = "%s_%s" % [cid, ex]
+	if _portrait_tex_cache.has(cache_key):
+		return _portrait_tex_cache[cache_key]
+	var path: String = "res://sprites/portraits/%s_%s.png" % [cid, ex]
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path) as Texture2D
+	if tex == null:
+		var abs_p: String = ProjectSettings.globalize_path(path)
+		if FileAccess.file_exists(abs_p):
+			var img := Image.load_from_file(abs_p)
+			if img != null and not img.is_empty():
+				tex = ImageTexture.create_from_image(img)
+	if tex == null:
+		tex = _create_fallback_pixel_icon(cid)
+	_portrait_tex_cache[cache_key] = tex
+	return tex
 
 func _get_icon_tex(key: String) -> Texture2D:
 	if _icon_cache.has(key):
@@ -593,11 +808,17 @@ func _create_fallback_pixel_icon(key: String) -> Texture2D:
 func _update_camera_limits() -> void:
 	if camera == null:
 		return
-	# 放宽摄像机边界到广阔外海区域，配合无限延伸的海洋绘制，彻底消除屏幕边缘灰色留白
-	camera.limit_left = -TILE_SIZE * 16
-	camera.limit_top = -TILE_SIZE * 12
-	camera.limit_right = (GRID_WIDTH + 16) * TILE_SIZE
-	camera.limit_bottom = (GRID_HEIGHT + 12) * TILE_SIZE
+	if in_interior:
+		camera.limit_left = -TILE_SIZE * 16
+		camera.limit_top = -TILE_SIZE * 12
+		camera.limit_right = (ROOM_W + 16) * TILE_SIZE
+		camera.limit_bottom = (ROOM_H + 12) * TILE_SIZE
+	else:
+		# 放宽摄像机边界到广阔外海区域，配合无限延伸的海洋绘制，彻底消除屏幕边缘灰色留白
+		camera.limit_left = -TILE_SIZE * 16
+		camera.limit_top = -TILE_SIZE * 12
+		camera.limit_right = (GRID_WIDTH + 16) * TILE_SIZE
+		camera.limit_bottom = (GRID_HEIGHT + 12) * TILE_SIZE
 
 # ==============================================================================
 # 44x44 完整岛屿生态设计（森林区、瀑布高地、中央喷泉广场、居民区、河畔集市、金沙滩与码头）
@@ -745,11 +966,15 @@ func _init_default_island() -> void:
 	object_grid[20][38] = ObjectType.SPORTS
 	object_grid[48][30] = ObjectType.FURNITURE_SHOP
 	object_grid[24][42] = ObjectType.SEED_SHOP
-	# 6c. 居民各自的小屋（阶段7 的室内入口）
-	object_grid[18][31] = ObjectType.VILLAGER_HOUSE
-	object_grid[16][36] = ObjectType.VILLAGER_HOUSE
-	object_grid[44][34] = ObjectType.VILLAGER_HOUSE
-	object_grid[34][44] = ObjectType.VILLAGER_HOUSE
+	# 6c. 8 位动物居民各自的小屋（熊、猫、兔、鹿、狐、蛙、海獭、小鸟独立房屋入口）
+	for vh_id in VILLAGER_HOUSE_CELLS.keys():
+		var vhc: Vector2i = VILLAGER_HOUSE_CELLS[vh_id]
+		if is_valid_cell(vhc.x, vhc.y):
+			ground_grid[vhc.x][vhc.y] = GroundType.GRASS
+			elevation_grid[vhc.x][vhc.y] = 1
+			object_grid[vhc.x][vhc.y] = ObjectType.VILLAGER_HOUSE
+			if is_valid_cell(vhc.x, vhc.y + 1) and ground_grid[vhc.x][vhc.y + 1] == GroundType.GRASS:
+				object_grid[vhc.x][vhc.y + 1] = ObjectType.NONE
 
 	# 家园小花园围栏与耕地
 	for fx in [13, 14, 17]:
@@ -898,6 +1123,10 @@ func _init_default_inventory() -> void:
 		"potted_plant": 4,
 		"bench_item": 2,
 		"lamp_item": 2,
+		"chair_item": 2,
+		"rug_item": 2,
+		"bookshelf_item": 1,
+		"sofa_item": 1,
 		"shell": 3,
 		"wood": 8,
 		"apple": 4
@@ -1050,12 +1279,13 @@ func _init_residents() -> void:
 		a["chat_cd"] = 0.0
 		a["greet_cd"] = 0.0
 		a["stuck_t"] = 0.0
-		var house_cells: Dictionary = {
-			"rabbit": Vector2i(22, 33), "cat": Vector2i(18, 31), "fox": Vector2i(16, 36),
-			"bear": Vector2i(44, 34), "penguin": Vector2i(34, 44)
-		}
-		var hc: Vector2i = house_cells.get(str(a["id"]), Vector2i(22, 33))
+		if not a.has("facing"):
+			a["facing"] = Vector2.DOWN
+		if not a.has("anim_t"):
+			a["anim_t"] = 0.0
+		var hc: Vector2i = VILLAGER_HOUSE_CELLS.get(str(a["id"]), Vector2i(22, 33))
 		a["house"] = Vector2(hc) * TILE_SIZE + Vector2(TILE_SIZE * 0.5, TILE_SIZE * 0.5)
+		a["home"] = Vector2(hc.x + 0.5, hc.y + 1.5) * TILE_SIZE
 	# 初始化两两关系
 	for i in range(animals.size()):
 		for j in range(animals.size()):
@@ -1085,11 +1315,14 @@ func _resident_action_target(idx: int, action_id: String) -> Vector2i:
 		"home":
 			return _nearest_walkable_cell(world_to_grid(a["home"]), 3, false)
 		"food":
-			return _nearest_walkable_cell(Vector2i(30, 32), 3, false)
-		"bench":
-			return _nearest_walkable_cell(Vector2i(29, 29), 2, false)
+			return _nearest_walkable_cell(Vector2i(38, 25), 3, false)
+		"library", "bench":
+			return _nearest_walkable_cell(Vector2i(20, 25), 3, false)
+		"sports":
+			return _nearest_walkable_cell(Vector2i(20, 39), 3, false)
 		"shop":
-			return _nearest_walkable_cell(Vector2i(40, 28), 3, false)
+			var shop_targets: Array[Vector2i] = [Vector2i(40, 28), Vector2i(48, 31), Vector2i(24, 43)]
+			return _nearest_walkable_cell(shop_targets[idx % shop_targets.size()], 3, false)
 		"beach":
 			return _nearest_walkable_cell(Vector2i(30, 52), 4, false)
 		"friend":
@@ -1130,13 +1363,15 @@ func _resident_score_action(idx: int, action_id: String, hour: int) -> float:
 		"play":
 			score = (1.0 - float(n["fun"])) * 1.8 + float(p["energy"]) * 0.8 + (0.4 if hour >= 10 and hour < 18 else 0.0)
 		"read":
-			score = float(p["curiosity"]) * 1.4 + (1.0 - float(n["fun"])) * 0.7 + (0.3 if hour >= 15 else 0.0)
+			score = float(p["curiosity"]) * 1.4 + (1.0 - float(n["fun"])) * 0.7 + (0.3 if hour >= 14 else 0.0)
+		"sports":
+			score = float(p["energy"]) * 1.3 + (1.0 - float(n["fun"])) * 0.8 + (0.35 if hour >= 8 and hour < 18 else 0.0)
 		"shop":
-			score = float(p["social"]) * 0.7 + (1.0 - float(n["fun"])) * 0.6 + (0.2 if hour >= 11 and hour < 19 else 0.0)
+			score = float(p["social"]) * 0.7 + (1.0 - float(n["fun"])) * 0.6 + (0.25 if hour >= 10 and hour < 19 else 0.0)
 		"stroll":
 			score = 0.9 + float(p["energy"]) * 0.4
 
-	var act_interest: Dictionary = {"read": "阅读", "play": "海", "shop": "料理", "eat": "料理", "chat": "朋友", "stroll": "探索"}
+	var act_interest: Dictionary = {"read": "阅读", "play": "海", "sports": "运动", "shop": "园艺", "eat": "料理", "chat": "音乐", "stroll": "探索"}
 	var tag: String = str(act_interest.get(action_id, ""))
 	if tag != "" and tag in a["interests"]:
 		score += 0.6
@@ -1201,6 +1436,8 @@ func _resident_go_to(idx: int, target_cell: Vector2i) -> bool:
 	if from == target_cell:
 		a["path"] = []
 		return true
+	if in_interior:
+		return false
 	var p: Array = find_path(from, target_cell)
 	if p.is_empty():
 		return false
@@ -1224,6 +1461,7 @@ func _resident_move(idx: int, delta: float) -> void:
 	var a: Dictionary = animals[idx]
 	var path: Array = a["path"]
 	if path.is_empty():
+		a["anim_t"] = 0.0
 		return
 	var pos: Vector2 = a["pos"]
 
@@ -1233,9 +1471,12 @@ func _resident_move(idx: int, delta: float) -> void:
 		if to_target.length() <= 2.5:
 			path.pop_front()
 			continue
+		var dir_norm: Vector2 = to_target.normalized()
+		a["facing"] = dir_norm
+		a["anim_t"] = float(a.get("anim_t", 0.0)) + delta * 7.5
 		var step: float = minf(RESIDENT_SPEED * delta, to_target.length())
-		var next_pos: Vector2 = pos + to_target.normalized() * step
-		if _resident_blocked_by_other(idx, next_pos) or next_pos.distance_to(player_pos) < 8.0:
+		var next_pos: Vector2 = pos + dir_norm * step
+		if _resident_blocked_by_other(idx, next_pos) or (not in_interior and next_pos.distance_to(player_pos) < 8.0):
 			a["stuck_t"] = float(a.get("stuck_t", 0.0)) + delta
 			if float(a["stuck_t"]) > 1.4:
 				path.clear()
@@ -1439,9 +1680,12 @@ func _resident_interact(i: int) -> void:
 	a["needs"]["social"] = clampf(float(a["needs"]["social"]) + 0.15, 0.0, 1.0)
 	a["needs"]["fun"] = clampf(float(a["needs"]["fun"]) + 0.05, 0.0, 1.0)
 	_resident_add_memory(i, "player", "player", "和你在%s聊过天" % _resident_action_label(str(a["action"])), 3)
+	var expr: String = _select_resident_expression(a, gift_id != "")
 	_open_dialog_modal(
 		"%s · %s · ♥%d · 正在%s" % [str(a["name"]), str(a["trait"]), int(a["affinity"]), _resident_action_label(str(a["action"]))],
-		_resident_greet_line(i)
+		_resident_greet_line(i),
+		str(a["id"]),
+		expr
 	)
 	if AI_DEBUG_LOG:
 		print("[AI] 玩家与 ", a["name"], " 交互，好感=", a["affinity"], " 记忆=", a["memory"].size())
@@ -1490,10 +1734,14 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 	return Vector2i(int(floor(world_pos.x / TILE_SIZE)), int(floor(world_pos.y / TILE_SIZE)))
 
 func is_valid_cell(gx: int, gy: int) -> bool:
+	if in_interior:
+		return gx >= 0 and gx < ROOM_W and gy >= 0 and gy < ROOM_H
 	return gx >= 0 and gx < GRID_WIDTH and gy >= 0 and gy < GRID_HEIGHT
 
 func is_cell_walkable(gx: int, gy: int, allow_high: bool = true) -> bool:
-	if not is_valid_cell(gx, gy):
+	if in_interior:
+		return is_indoor_cell_walkable(gx, gy)
+	if gx < 0 or gx >= GRID_WIDTH or gy < 0 or gy >= GRID_HEIGHT:
 		return false
 	var g_type: int = ground_grid[gx][gy]
 	if g_type in [GroundType.DEEP_WATER, GroundType.SHALLOW_WATER, GroundType.RIVER]:
@@ -1511,7 +1759,8 @@ func is_cell_walkable(gx: int, gy: int, allow_high: bool = true) -> bool:
 		ObjectType.SIGNBOARD, ObjectType.ROCK, ObjectType.STUMP,
 		ObjectType.LIBRARY, ObjectType.CANTEEN, ObjectType.SPORTS,
 		ObjectType.FURNITURE_SHOP, ObjectType.SEED_SHOP,
-		ObjectType.BOOKSHELF, ObjectType.RECORD_PLAYER, ObjectType.SHELL_SHELF, ObjectType.DINING_TABLE
+		ObjectType.BOOKSHELF, ObjectType.RECORD_PLAYER, ObjectType.SHELL_SHELF, ObjectType.DINING_TABLE,
+		ObjectType.BED, ObjectType.SOFA, ObjectType.CHAIR, ObjectType.WARDROBE, ObjectType.STORAGE_BOX, ObjectType.DISPLAY_CASE
 	]:
 		return false
 	return true
@@ -1521,6 +1770,8 @@ func is_cell_walkable(gx: int, gy: int, allow_high: bool = true) -> bool:
 #   高度差 == 1 -> 起点或终点必须是坡道(RAMP)
 #   高度差 > 1  -> 禁止
 func can_step_between(from_cell: Vector2i, to_cell: Vector2i) -> bool:
+	if in_interior:
+		return is_indoor_cell_walkable(to_cell.x, to_cell.y)
 	if not is_cell_walkable(to_cell.x, to_cell.y):
 		return false
 	if from_cell == to_cell:
@@ -1577,6 +1828,10 @@ func _move_player_with_collision(motion: Vector2) -> void:
 	var rect_y := Rect2(try_y - COLLISION_HALF_SIZE, COLLISION_HALF_SIZE * 2.0)
 	if _rect_step_ok(old_rect, rect_y):
 		player_pos.y = try_y.y
+	if in_interior:
+		var pc: Vector2i = world_to_grid(player_pos)
+		if pc.y >= ROOM_H - 1 and pc.x in [5, 6] and motion.y > 0.0:
+			_exit_house()
 
 func get_front_cell() -> Vector2i:
 	var target_pt: Vector2 = player_pos + player_facing.normalized() * float(TILE_SIZE) * 0.95
@@ -1592,6 +1847,10 @@ func _refresh_nearby_interaction() -> void:
 	nearby_animal_idx = -1
 
 	if interact_btn_label == null:
+		return
+
+	if in_interior:
+		_refresh_indoor_interaction()
 		return
 
 	for i in range(animals.size()):
@@ -1691,6 +1950,9 @@ func _refresh_nearby_interaction() -> void:
 
 func _on_interact_pressed() -> void:
 	_refresh_nearby_interaction()
+	if in_interior:
+		_on_indoor_interact_pressed()
+		return
 	match nearby_interact_type:
 		"animal":
 			if nearby_animal_idx >= 0 and nearby_animal_idx < animals.size():
@@ -1744,6 +2006,9 @@ func _on_interact_pressed() -> void:
 
 func _on_use_tool_pressed() -> void:
 	if game_state != GameState.EXPLORE_MODE:
+		return
+	if in_interior:
+		_on_indoor_use_tool_pressed()
 		return
 	var item_id: String = hotbar[selected_hotbar_index]
 	if item_id == "" or not ITEM_DB.has(item_id):
@@ -2233,183 +2498,628 @@ func _open_fish_codex() -> void:
 # 房屋与室内（阶段7）：每个房间有独立布局数据，进出保留室外位置
 # ==============================================================================
 
-var in_interior: bool = false
-var outdoor_pos: Vector2 = Vector2.ZERO
-var interior_modal: Control = null
+const ROOM_W: int = 12
+const ROOM_H: int = 10
 
-const INTERIOR_LAYOUTS: Dictionary = {
-	"player": {
-		"name": "我的小屋",
-		"floor": Color("#FFF2D6"),
-		"wall": Color("#E9D9BE"),
-		"items": [
-			{"t": "bed", "x": 14, "y": 96, "w": 46, "h": 32, "col": Color("#74C9ED")},
-			{"t": "table", "x": 110, "y": 104, "w": 40, "h": 26, "col": Color("#B98761")},
-			{"t": "shelf", "x": 250, "y": 70, "w": 70, "h": 18, "col": Color("#8A5B45")},
-			{"t": "rug", "x": 180, "y": 120, "w": 90, "h": 34, "col": Color("#EE8398")}
-		],
-		"actions": [{"text": "睡一会儿（保存进度）", "act": "sleep"}],
-		"desc": "奶油色的墙、木桌和一张软床，窗外能听见海浪。"
-	},
-	"rabbit": {
-		"name": "莉莉的小书房",
-		"floor": Color("#FBF3E4"), "wall": Color("#F2DEC0"),
-		"items": [
-			{"t": "shelf", "x": 20, "y": 60, "w": 96, "h": 22, "col": Color("#8A5B45")},
-			{"t": "desk", "x": 140, "y": 96, "w": 54, "h": 30, "col": Color("#B98761")},
-			{"t": "lamp", "x": 214, "y": 78, "w": 12, "h": 26, "col": Color("#F7D460")},
-			{"t": "plant", "x": 270, "y": 104, "w": 22, "h": 24, "col": Color("#39815D")}
-		],
-		"actions": [{"text": "翻阅书架上的书（+知识）", "act": "read"}],
-		"desc": "整面墙都是书，桌上摊着一本写到一半的笔记。"
-	},
-	"cat": {
-		"name": "奈奈的音乐屋",
-		"floor": Color("#F7E9E2"), "wall": Color("#F5B06C"),
-		"items": [
-			{"t": "record", "x": 40, "y": 70, "w": 44, "h": 34, "col": Color("#544A44")},
-			{"t": "sofa", "x": 140, "y": 96, "w": 90, "h": 34, "col": Color("#EE8398")},
-			{"t": "mic", "x": 260, "y": 80, "w": 10, "h": 40, "col": Color("#74C9ED")}
-		],
-		"actions": [{"text": "听一会儿唱片（移速+20%）", "act": "music"}],
-		"desc": "唱片机一直在转，墙上贴着演出的照片。"
-	},
-	"fox": {
-		"name": "阿洛的瞭望间",
-		"floor": Color("#EFE7DA"), "wall": Color("#39815D"),
-		"items": [
-			{"t": "desk", "x": 30, "y": 96, "w": 64, "h": 30, "col": Color("#8A5B45")},
-			{"t": "map", "x": 130, "y": 56, "w": 90, "h": 46, "col": Color("#F5DDA1")},
-			{"t": "telescope", "x": 260, "y": 74, "w": 14, "h": 34, "col": Color("#544A44")}
-		],
-		"actions": [{"text": "查看岛图（显示钓鱼点提示）", "act": "map"}],
-		"desc": "桌上铺着地图，窗边架着一支旧望远镜。"
-	},
-	"bear": {
-		"name": "布朗的厨房",
-		"floor": Color("#F6EDDC"), "wall": Color("#B98761"),
-		"items": [
-			{"t": "stove", "x": 26, "y": 84, "w": 56, "h": 36, "col": Color("#8A5B45")},
-			{"t": "table", "x": 140, "y": 100, "w": 92, "h": 32, "col": Color("#D9BC7E")},
-			{"t": "pot", "x": 262, "y": 86, "w": 24, "h": 24, "col": Color("#9BA2A8")}
-		],
-		"actions": [{"text": "尝一口热汤（移速+20%）", "act": "eat"}],
-		"desc": "锅还在咕嘟咕嘟响，空气里是南瓜汤的味道。"
-	},
-	"penguin": {
-		"name": "波波的贝壳屋",
-		"floor": Color("#E6F3F8"), "wall": Color("#379CC9"),
-		"items": [
-			{"t": "shelf", "x": 24, "y": 62, "w": 110, "h": 24, "col": Color("#F5DDA1")},
-			{"t": "chair", "x": 170, "y": 104, "w": 40, "h": 32, "col": Color("#F08A61")},
-			{"t": "window", "x": 260, "y": 56, "w": 62, "h": 44, "col": Color("#74C9ED")}
-		],
-		"actions": [{"text": "看看贝壳收藏（+知识）", "act": "shells"}],
-		"desc": "架子上摆着从各个海滩捡来的贝壳，按颜色排得整整齐齐。"
-	}
+var in_interior: bool = false
+var current_room_id: String = ""
+var outdoor_pos: Vector2 = Vector2.ZERO
+var outdoor_facing: Vector2 = Vector2.DOWN
+var indoor_rooms: Dictionary = {}
+var indoor_edit_mode: bool = false
+var indoor_preview_cell: Vector2i = Vector2i(-1, -1)
+var indoor_moving_item: Dictionary = {}
+var indoor_hud_bar: Panel = null
+var indoor_title_lbl: Label = null
+var indoor_edit_btn: Button = null
+var indoor_store_btn: Button = null
+var indoor_exit_btn: Button = null
+
+const INDOOR_FURNITURE_META: Dictionary = {
+	"bed":           {"name": "温暖木床",   "icon": "bed",           "walkable": false, "item_id": "bed_item",       "act": "sleep",   "btn": "休息"},
+	"sofa":          {"name": "暖心沙发",   "icon": "sofa",          "walkable": false, "item_id": "sofa_item",      "act": "sit",     "btn": "小憩"},
+	"table":         {"name": "原木书桌",   "icon": "table",         "walkable": false, "item_id": "table_item",     "act": "work",    "btn": "工作"},
+	"chair":         {"name": "木靠背椅",   "icon": "chair",         "walkable": false, "item_id": "chair_item",     "act": "sit",     "btn": "落座"},
+	"bookshelf":     {"name": "满载书架",   "icon": "bookshelf",     "walkable": false, "item_id": "bookshelf_item", "act": "read",    "btn": "阅读"},
+	"lamp":          {"name": "温馨台灯",   "icon": "lamp",          "walkable": false, "item_id": "lamp_item",      "act": "lamp",    "btn": "台灯"},
+	"rug":           {"name": "织花地毯",   "icon": "rug",           "walkable": true,  "item_id": "rug_item",       "act": "",        "btn": "互动"},
+	"wardrobe":      {"name": "双门衣柜",   "icon": "wardrobe",      "walkable": false, "item_id": "wardrobe_item",  "act": "storage", "btn": "储物"},
+	"storage_box":   {"name": "储物木箱",   "icon": "storage_box",   "walkable": false, "item_id": "storage_item",   "act": "storage", "btn": "储物"},
+	"record_player": {"name": "复古留声机", "icon": "record_player", "walkable": false, "item_id": "record_item",    "act": "music",   "btn": "听歌"},
+	"display_case":  {"name": "收藏展示柜", "icon": "display_case",  "walkable": false, "item_id": "display_item",   "act": "display", "btn": "观赏"},
+	"seed_rack":     {"name": "花艺种子架", "icon": "seed_rack",     "walkable": false, "item_id": "potted_plant",   "act": "seeds",   "btn": "花架"},
+	"shell_rack":    {"name": "海洋贝壳架", "icon": "shell_rack",    "walkable": false, "item_id": "shell",          "act": "shells",  "btn": "贝壳"},
+	"sports_gear":   {"name": "运动器材架", "icon": "sports_gear",   "walkable": false, "item_id": "bench_item",     "act": "sports",  "btn": "锻炼"},
+	"map_wall":      {"name": "航海探索图", "icon": "map_wall",      "walkable": false, "item_id": "display_item",   "act": "map",     "btn": "看图"},
+	"stove_counter": {"name": "暖香料理台", "icon": "stove_counter", "walkable": false, "item_id": "table_item",     "act": "eat",     "btn": "品尝"},
+	"potted_plant":  {"name": "精致盆栽",   "icon": "potted_plant",  "walkable": false, "item_id": "potted_plant",   "act": "plant",   "btn": "赏花"}
 }
 
+func _init_indoor_rooms() -> void:
+	indoor_rooms = {
+		"player": {
+			"name": "我的温馨小屋（休息区·储物区·工作区·自由装修区）",
+			"floor_col": Color("#F7EBD4"),
+			"floor_alt": Color("#EFE0C4"),
+			"wall_col": Color("#D9C3A3"),
+			"trim_col": Color("#8A5B45"),
+			"furniture": [
+				# 休息区 (左上)
+				{"x": 2, "y": 2, "type": "bed"},
+				{"x": 3, "y": 2, "type": "lamp"},
+				{"x": 2, "y": 3, "type": "rug"},
+				{"x": 3, "y": 3, "type": "rug"},
+				# 储物区 (右上)
+				{"x": 8, "y": 1, "type": "wardrobe"},
+				{"x": 9, "y": 1, "type": "storage_box"},
+				# 工作区 (左下)
+				{"x": 2, "y": 6, "type": "table"},
+				{"x": 3, "y": 6, "type": "chair"},
+				{"x": 1, "y": 5, "type": "bookshelf"},
+				# 自由装修区 (右侧与中庭留白，带少量初始点缀)
+				{"x": 9, "y": 5, "type": "potted_plant"},
+				{"x": 5, "y": 5, "type": "rug"},
+				{"x": 6, "y": 5, "type": "rug"}
+			]
+		},
+		"bear": {
+			"name": "小熊阿棕的木香书屋（温和·爱阅读）",
+			"floor_col": Color("#EEDBC0"),
+			"floor_alt": Color("#E4CFAF"),
+			"wall_col": Color("#B98761"),
+			"trim_col": Color("#6E4735"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "bookshelf"},
+				{"x": 3, "y": 1, "type": "bookshelf"},
+				{"x": 4, "y": 1, "type": "bookshelf"},
+				{"x": 2, "y": 3, "type": "sofa"},
+				{"x": 3, "y": 3, "type": "lamp"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"},
+				{"x": 8, "y": 2, "type": "stove_counter"},
+				{"x": 8, "y": 5, "type": "table"},
+				{"x": 9, "y": 5, "type": "chair"},
+				{"x": 2, "y": 7, "type": "bed"}
+			]
+		},
+		"cat": {
+			"name": "小猫柒柒的临窗观察屋（独立·爱安静）",
+			"floor_col": Color("#F6E9E2"),
+			"floor_alt": Color("#EDDCD3"),
+			"wall_col": Color("#E6B89C"),
+			"trim_col": Color("#7A5448"),
+			"furniture": [
+				# 靠窗座位与观察点
+				{"x": 4, "y": 1, "type": "sofa"},
+				{"x": 7, "y": 1, "type": "chair"},
+				{"x": 8, "y": 1, "type": "lamp"},
+				{"x": 2, "y": 2, "type": "record_player"},
+				{"x": 5, "y": 3, "type": "rug"},
+				{"x": 6, "y": 3, "type": "rug"},
+				{"x": 9, "y": 4, "type": "bookshelf"},
+				{"x": 2, "y": 6, "type": "bed"},
+				{"x": 9, "y": 7, "type": "potted_plant"}
+			]
+		},
+		"rabbit": {
+			"name": "小兔露露的花艺园丁屋（活泼·园艺兴趣）",
+			"floor_col": Color("#FBF3E6"),
+			"floor_alt": Color("#F4E7D4"),
+			"wall_col": Color("#F2C6CF"),
+			"trim_col": Color("#9A5B6B"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "seed_rack"},
+				{"x": 3, "y": 1, "type": "seed_rack"},
+				{"x": 8, "y": 1, "type": "potted_plant"},
+				{"x": 9, "y": 1, "type": "potted_plant"},
+				{"x": 2, "y": 3, "type": "potted_plant"},
+				{"x": 9, "y": 3, "type": "potted_plant"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"},
+				{"x": 8, "y": 5, "type": "table"},
+				{"x": 9, "y": 5, "type": "chair"},
+				{"x": 2, "y": 6, "type": "bed"}
+			]
+		},
+		"deer": {
+			"name": "小鹿森森的自然木屋（沉静·热爱自然）",
+			"floor_col": Color("#EFE5D2"),
+			"floor_alt": Color("#E4D8C1"),
+			"wall_col": Color("#9CC49E"),
+			"trim_col": Color("#4A6B4E"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "bookshelf"},
+				{"x": 3, "y": 1, "type": "potted_plant"},
+				{"x": 8, "y": 1, "type": "potted_plant"},
+				{"x": 9, "y": 1, "type": "bookshelf"},
+				{"x": 3, "y": 3, "type": "table"},
+				{"x": 4, "y": 3, "type": "chair"},
+				{"x": 2, "y": 3, "type": "lamp"},
+				{"x": 5, "y": 5, "type": "rug"},
+				{"x": 6, "y": 5, "type": "rug"},
+				{"x": 8, "y": 6, "type": "bed"},
+				{"x": 2, "y": 7, "type": "potted_plant"}
+			]
+		},
+		"fox": {
+			"name": "小狐狸阿橙的收藏探险屋（机灵·爱收集）",
+			"floor_col": Color("#EFE4D4"),
+			"floor_alt": Color("#E4D6C3"),
+			"wall_col": Color("#D99B72"),
+			"trim_col": Color("#5C4338"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "display_case"},
+				{"x": 3, "y": 1, "type": "display_case"},
+				{"x": 6, "y": 1, "type": "map_wall"},
+				{"x": 9, "y": 1, "type": "storage_box"},
+				{"x": 8, "y": 3, "type": "table"},
+				{"x": 9, "y": 3, "type": "chair"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"},
+				{"x": 2, "y": 6, "type": "bed"},
+				{"x": 3, "y": 6, "type": "lamp"}
+			]
+		},
+		"frog": {
+			"name": "小青蛙呱呱的碧波运动屋（蓝绿水生·爱运动）",
+			"floor_col": Color("#E2F2EA"),
+			"floor_alt": Color("#D3E8DD"),
+			"wall_col": Color("#7BC9A6"),
+			"trim_col": Color("#39735B"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "sports_gear"},
+				{"x": 3, "y": 1, "type": "sports_gear"},
+				{"x": 8, "y": 1, "type": "potted_plant"},
+				{"x": 9, "y": 1, "type": "potted_plant"},
+				{"x": 2, "y": 4, "type": "potted_plant"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"},
+				{"x": 8, "y": 4, "type": "sofa"},
+				{"x": 2, "y": 6, "type": "bed"},
+				{"x": 9, "y": 6, "type": "storage_box"}
+			]
+		},
+		"otter": {
+			"name": "小海獭波波的贝壳海景屋（海洋装饰·爱垂钓）",
+			"floor_col": Color("#E4F2F8"),
+			"floor_alt": Color("#D5E7F0"),
+			"wall_col": Color("#74C9ED"),
+			"trim_col": Color("#2E6F8E"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "shell_rack"},
+				{"x": 3, "y": 1, "type": "shell_rack"},
+				{"x": 8, "y": 1, "type": "display_case"},
+				{"x": 9, "y": 1, "type": "storage_box"},
+				{"x": 2, "y": 4, "type": "table"},
+				{"x": 3, "y": 4, "type": "chair"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"},
+				{"x": 8, "y": 6, "type": "bed"},
+				{"x": 9, "y": 6, "type": "lamp"}
+			]
+		},
+		"bird": {
+			"name": "小鸟小羽的唱机音乐屋（音乐书本·舒适座椅）",
+			"floor_col": Color("#FBF2DF"),
+			"floor_alt": Color("#F2E5CB"),
+			"wall_col": Color("#88CBE8"),
+			"trim_col": Color("#466D85"),
+			"furniture": [
+				{"x": 2, "y": 1, "type": "record_player"},
+				{"x": 3, "y": 1, "type": "bookshelf"},
+				{"x": 8, "y": 1, "type": "bookshelf"},
+				{"x": 3, "y": 3, "type": "sofa"},
+				{"x": 4, "y": 3, "type": "chair"},
+				{"x": 8, "y": 3, "type": "lamp"},
+				{"x": 5, "y": 4, "type": "rug"},
+				{"x": 6, "y": 4, "type": "rug"},
+				{"x": 2, "y": 6, "type": "bed"},
+				{"x": 9, "y": 6, "type": "potted_plant"}
+			]
+		}
+	}
+
+func is_indoor_door_clearance(gx: int, gy: int) -> bool:
+	return (gx in [5, 6]) and (gy in [8, 9])
+
+func _indoor_furniture_at(room_id: String, gx: int, gy: int, ignore_walkable: bool = false) -> Dictionary:
+	if not indoor_rooms.has(room_id):
+		return {}
+	var furn_list: Array = indoor_rooms[room_id].get("furniture", [])
+	for f in furn_list:
+		if int(f.get("x", -1)) == gx and int(f.get("y", -1)) == gy:
+			var ftype: String = str(f.get("type", ""))
+			var w: bool = bool(INDOOR_FURNITURE_META.get(ftype, {}).get("walkable", false))
+			if ignore_walkable and w:
+				continue
+			return f
+	return {}
+
+func is_indoor_cell_walkable(gx: int, gy: int) -> bool:
+	if gx < 0 or gx >= ROOM_W or gy < 0 or gy >= ROOM_H:
+		return false
+	# 南侧房门通道 (5,9) 与 (6,9) 允许通行（走到即出门）
+	if gy == ROOM_H - 1 and gx in [5, 6]:
+		return true
+	# 四周墙体不可穿行
+	if gx == 0 or gx == ROOM_W - 1 or gy == 0 or gy == ROOM_H - 1:
+		return false
+	# 非地毯类家具阻挡碰撞
+	var f: Dictionary = _indoor_furniture_at(current_room_id, gx, gy, true)
+	if not f.is_empty():
+		return false
+	return true
+
 func _resident_id_for_house(cell: Vector2i) -> String:
+	for vh_id in VILLAGER_HOUSE_CELLS.keys():
+		if VILLAGER_HOUSE_CELLS[vh_id] == cell:
+			return str(vh_id)
 	for i in range(animals.size()):
 		var a: Dictionary = animals[i]
 		var hc: Vector2i = world_to_grid(a["house"])
 		if hc == cell:
 			return str(a["id"])
-	return ""
+	return "bear"
 
 func _enter_house(cell: Vector2i) -> void:
-	var house_id: String = ""
+	var house_id: String = "player"
 	if int(object_grid[cell.x][cell.y]) == ObjectType.HOUSE:
 		house_id = "player"
 	else:
 		house_id = _resident_id_for_house(cell)
-		if house_id == "":
-			house_id = "rabbit"
-	if not INTERIOR_LAYOUTS.has(house_id):
-		_show_toast("门锁着，屋里没人")
-		return
-	var layout: Dictionary = INTERIOR_LAYOUTS[house_id]
+	if indoor_rooms.is_empty():
+		_init_indoor_rooms()
+	if not indoor_rooms.has(house_id):
+		house_id = "bear"
+
+	_cancel_auto_path()
+	_reset_touch_states()
+	if not in_interior:
+		outdoor_pos = player_pos
+		outdoor_facing = player_facing
 	in_interior = true
-	outdoor_pos = player_pos
+	current_room_id = house_id
+	indoor_edit_mode = false
+	indoor_moving_item = {}
+	indoor_preview_cell = Vector2i(-1, -1)
 
-	if interior_modal != null and is_instance_valid(interior_modal):
-		interior_modal.queue_free()
-		interior_modal = null
-	var res: Array = _create_modal_base(str(layout["name"]), "home_ui", Vector2(430, 330))
-	var modal: Control = res[0]
-	var panel: Panel = res[1]
-
-	var room := Control.new()
-	room.position = Vector2(24, 46)
-	room.size = Vector2(382, 168)
-	room.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var layout_copy: Dictionary = layout
-	room.draw.connect(func():
-		room.draw_rect(Rect2(0, 0, 382, 168), layout_copy["wall"], true)
-		room.draw_rect(Rect2(0, 26, 382, 142), layout_copy["floor"], true)
-		for it in layout_copy["items"]:
-			var r := Rect2(float(it["x"]), float(it["y"]), float(it["w"]), float(it["h"]))
-			room.draw_rect(r, PAL_OUTLINE, true)
-			room.draw_rect(r.grow(-2), it["col"], true)
-		room.draw_rect(Rect2(150, 150, 40, 18), PAL_WOOD, true)
-	)
-	panel.add_child(room)
-
-	var desc := Label.new()
-	desc.text = str(layout["desc"])
-	desc.position = Vector2(24, 220)
-	desc.size = Vector2(382, 30)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_font_size_override("font_size", 12)
-	desc.add_theme_color_override("font_color", PAL_OUTLINE)
-	panel.add_child(desc)
-
-	var y: float = 252.0
-	for act in layout["actions"]:
-		var act_id: String = str(act["act"])
-		var b := _make_touch_btn(str(act["text"]), Vector2(184, 34), PAL_CREAM_DARK, PAL_OUTLINE)
-		b.position = Vector2(24, y)
-		b.pressed.connect(func():
-			_do_interior_action(act_id)
-		)
-		panel.add_child(b)
-		y += 40.0
-
-	var out_btn := _make_touch_btn("出门", Vector2(184, 34), PAL_CORAL, PAL_OUTLINE)
-	out_btn.position = Vector2(222, 252)
-	out_btn.pressed.connect(func():
-		_exit_house()
-	)
-	panel.add_child(out_btn)
-
-	interior_modal = modal
-	_open_modal(modal)
+	# 将玩家放置在房间南门内侧中央，面朝室内北方
+	player_pos = Vector2(5.5 * TILE_SIZE, 8.1 * TILE_SIZE)
+	player_facing = Vector2.UP
+	_update_camera_limits()
+	if camera != null:
+		camera.position = Vector2(6.0 * TILE_SIZE, 5.0 * TILE_SIZE)
+	if mode_toggle_label != null:
+		mode_toggle_label.text = "装修" if current_room_id == "player" else "出门"
+	_update_indoor_hud()
+	_refresh_nearby_interaction()
+	var rname: String = str(indoor_rooms[house_id].get("name", "温馨小屋"))
+	if house_id == "player":
+		_show_toast("进入【%s】：可自由行走、互动，或点右上【装修】布置/收纳家具" % rname)
+	else:
+		_show_toast("进入【%s】：走近家具可互动，往下走出房门即可返回室外" % rname)
+	queue_redraw()
 
 func _exit_house() -> void:
+	if not in_interior:
+		return
+	if not indoor_moving_item.is_empty() and current_room_id == "player":
+		indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+		indoor_moving_item = {}
 	in_interior = false
-	if interior_modal != null and is_instance_valid(interior_modal):
-		interior_modal.queue_free()
-		interior_modal = null
+	indoor_edit_mode = false
+	current_room_id = ""
+	_cancel_auto_path()
+	_reset_touch_states()
 	player_pos = outdoor_pos
-	_close_active_modal()
-	_show_toast("回到屋外，天色还和刚才一样")
+	player_facing = Vector2.DOWN
+	_update_camera_limits()
+	if camera != null:
+		camera.position = player_pos
+	if mode_toggle_label != null:
+		mode_toggle_label.text = "岛建"
+	_update_indoor_hud()
+	_refresh_nearby_interaction()
+	_show_toast("已走出房间回到小岛，室外位置、时间与背包状态完全保留")
+	queue_redraw()
 
-func _do_interior_action(act_id: String) -> void:
+func _toggle_indoor_edit_mode() -> void:
+	if not in_interior:
+		return
+	if current_room_id != "player":
+		_exit_house()
+		return
+	indoor_edit_mode = not indoor_edit_mode
+	if not indoor_edit_mode and not indoor_moving_item.is_empty():
+		indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+		indoor_moving_item = {}
+	indoor_preview_cell = get_front_cell()
+	_update_indoor_hud()
+	if indoor_edit_mode:
+		_show_toast("【室内装修模式】点地面可预览并放置快捷栏家具，或点击已有家具进行移动/收纳")
+	else:
+		_show_toast("已退出室内装修模式")
+	queue_redraw()
+
+func _update_indoor_hud() -> void:
+	if hud_root == null:
+		return
+	if indoor_hud_bar == null:
+		indoor_hud_bar = Panel.new()
+		indoor_hud_bar.position = Vector2(12, 48)
+		indoor_hud_bar.size = Vector2(460, 34)
+		indoor_hud_bar.add_theme_stylebox_override("panel", _make_storybook_panel_style(PAL_CREAM, PAL_OUTLINE, 8))
+		hud_root.add_child(indoor_hud_bar)
+
+		var hbox := HBoxContainer.new()
+		hbox.position = Vector2(8, 3)
+		hbox.add_theme_constant_override("separation", 6)
+		indoor_hud_bar.add_child(hbox)
+
+		indoor_title_lbl = Label.new()
+		indoor_title_lbl.custom_minimum_size = Vector2(228, 26)
+		indoor_title_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		indoor_title_lbl.add_theme_font_size_override("font_size", 11)
+		indoor_title_lbl.add_theme_color_override("font_color", PAL_WOOD)
+		hbox.add_child(indoor_title_lbl)
+
+		indoor_edit_btn = _make_touch_btn("装修: 关", Vector2(68, 26), PAL_SKY_BLUE, PAL_OUTLINE)
+		indoor_edit_btn.pressed.connect(_toggle_indoor_edit_mode)
+		hbox.add_child(indoor_edit_btn)
+
+		indoor_store_btn = _make_touch_btn("收纳家具", Vector2(68, 26), PAL_SAND, PAL_OUTLINE)
+		indoor_store_btn.pressed.connect(_store_front_indoor_furniture)
+		hbox.add_child(indoor_store_btn)
+
+		indoor_exit_btn = _make_touch_btn("出门返回", Vector2(68, 26), PAL_CORAL, PAL_OUTLINE)
+		indoor_exit_btn.pressed.connect(_exit_house)
+		hbox.add_child(indoor_exit_btn)
+
+	indoor_hud_bar.visible = in_interior
+	if not in_interior:
+		return
+	var rinfo: Dictionary = indoor_rooms.get(current_room_id, {})
+	indoor_title_lbl.text = str(rinfo.get("name", "室内房间"))
+	var is_player_room: bool = (current_room_id == "player")
+	indoor_edit_btn.visible = is_player_room
+	indoor_store_btn.visible = is_player_room
+	indoor_edit_btn.text = "装修: 开" if indoor_edit_mode else "装修: 关"
+
+func _indoor_host_resident_idx() -> int:
+	if not in_interior or current_room_id == "player":
+		return -1
+	for i in range(animals.size()):
+		if str(animals[i]["id"]) == current_room_id:
+			return i
+	return -1
+
+func _indoor_host_pos() -> Vector2:
+	return Vector2(6.5 * TILE_SIZE, 3.5 * TILE_SIZE)
+
+func _refresh_indoor_interaction() -> void:
+	var host_idx: int = _indoor_host_resident_idx()
+	if host_idx >= 0 and player_pos.distance_to(_indoor_host_pos()) <= 26.0:
+		nearby_interact_type = "indoor_animal"
+		nearby_animal_idx = host_idx
+		interact_btn_label.text = "交谈"
+		return
+
+	var p_cell: Vector2i = world_to_grid(player_pos)
+	var f_cell: Vector2i = get_front_cell()
+	if p_cell.y >= ROOM_H - 2 and p_cell.x in [5, 6] and f_cell.y >= ROOM_H - 1:
+		nearby_interact_type = "exit_door"
+		nearby_interact_cell = f_cell
+		interact_btn_label.text = "出门"
+		return
+
+	var check_cells: Array[Vector2i] = [
+		f_cell, p_cell,
+		p_cell + Vector2i(0, -1), p_cell + Vector2i(0, 1),
+		p_cell + Vector2i(-1, 0), p_cell + Vector2i(1, 0)
+	]
+	for c in check_cells:
+		var f: Dictionary = _indoor_furniture_at(current_room_id, c.x, c.y, true)
+		if not f.is_empty():
+			var ftype: String = str(f.get("type", ""))
+			var meta: Dictionary = INDOOR_FURNITURE_META.get(ftype, {})
+			nearby_interact_type = "indoor_furn"
+			nearby_interact_cell = c
+			interact_btn_label.text = str(meta.get("btn", "互动"))
+			return
+	interact_btn_label.text = "出门" if (p_cell.y >= ROOM_H - 2 and p_cell.x in [5, 6]) else "互动"
+
+func _on_indoor_interact_pressed() -> void:
+	if nearby_interact_type == "indoor_animal" and nearby_animal_idx >= 0:
+		_spawn_burst_effect(_indoor_host_pos() + Vector2(0, -12), PAL_PINK)
+		_resident_interact(nearby_animal_idx)
+		return
+	if nearby_interact_type == "exit_door":
+		_exit_house()
+		return
+	if nearby_interact_type == "indoor_furn":
+		var f: Dictionary = _indoor_furniture_at(current_room_id, nearby_interact_cell.x, nearby_interact_cell.y, true)
+		if not f.is_empty():
+			var ftype: String = str(f.get("type", ""))
+			var meta: Dictionary = INDOOR_FURNITURE_META.get(ftype, {})
+			_do_interior_action(str(meta.get("act", "")), ftype)
+			return
+	var p_cell: Vector2i = world_to_grid(player_pos)
+	if p_cell.y >= ROOM_H - 2 and p_cell.x in [5, 6]:
+		_exit_house()
+	else:
+		_show_toast("走近床铺、书架、衣柜、留声机或居民即可点击互动；走到底部房门可出门")
+
+func _do_interior_action(act_id: String, ftype: String = "") -> void:
 	match act_id:
 		"sleep":
 			_save_game()
-			_show_toast("睡了一小会儿，进度已保存")
+			_spawn_burst_effect(player_pos, PAL_SKY_BLUE)
+			_show_toast("在温暖的木床上休息片刻，精神饱满，日记进度已自动保存！")
+		"storage":
+			_open_bag_modal()
+		"work":
+			_open_dialog_modal("工作区书桌笔记", "【小岛生活手记】\n• 休息区：木床可随时睡眠存档\n• 储物区：衣柜与木箱可整理背包\n• 自由装修区：选中底部家具点「使用」或开启「装修」即可摆放、移动与收纳家具！")
 		"read":
 			player_knowledge += 1
-			_show_toast("读到一段很有道理的话（知识 %d）" % player_knowledge)
-		"music", "eat":
-			speed_buff_timer = maxf(speed_buff_timer, 60.0)
-			_show_toast("心情变好了（移速+20%，60秒）")
+			_show_toast("翻阅了书架上的绘本笔记，知识 +1（当前知识：%d）" % player_knowledge)
+		"music":
+			speed_buff_timer = maxf(speed_buff_timer, 90.0)
+			_spawn_burst_effect(player_pos, PAL_GOLD)
+			_show_toast("留声机流淌出轻柔的海岛旋律，心情愉悦（移速+20%，90秒）")
+		"eat":
+			speed_buff_timer = maxf(speed_buff_timer, 90.0)
+			_spawn_burst_effect(player_pos, PAL_CORAL)
+			_show_toast("品尝了香气扑鼻的暖胃热汤，浑身充满干劲（移速+20%，90秒）")
 		"map":
-			_show_toast("地图上标注着：河流上游、南岸码头、东侧海湾都适合钓鱼")
+			_open_dialog_modal("阿橙的航海探索地图", "地图上用红笔圈出了小岛秘境：\n• 北部高地瀑布下适合垂钓河鲈与夜鳗\n• 南岸木栈桥码头夜晚会出现稀有月光鱼\n• 东侧果园与西侧花田适合挥网捕蝶")
+		"display":
+			player_knowledge += 1
+			_show_toast("仔细观赏了收藏柜里的海岛奇珍，眼界大开（知识 %d）" % player_knowledge)
+		"seeds":
+			_show_toast("花艺架上整齐摆放着露露培育的鲜花与种子标本，真香呀~")
 		"shells":
 			player_knowledge += 1
-			_show_toast("认识了新的贝壳（知识 %d）" % player_knowledge)
+			_show_toast("欣赏了波波从海滩收集的五彩扇贝与海螺（知识 %d）" % player_knowledge)
+		"sports":
+			speed_buff_timer = maxf(speed_buff_timer, 60.0)
+			_show_toast("借用呱呱的运动器材热了热身，步伐更轻快了（移速+20%，60秒）")
+		"sit":
+			_show_toast("坐在柔软舒适的座椅上歇了口气，窗外海风轻拂~")
+		"lamp":
+			_show_toast("温暖的台灯散发着柔和的奶油色光芒")
+		_:
+			_show_toast("仔细打量了这件精致的室内陈设")
+
+func _can_place_indoor_furniture_at(gx: int, gy: int, ftype: String) -> bool:
+	if current_room_id != "player":
+		return false
+	if gx <= 0 or gx >= ROOM_W - 1 or gy <= 0 or gy >= ROOM_H - 1:
+		return false
+	if is_indoor_door_clearance(gx, gy):
+		return false
+	var is_rug: bool = (ftype == "rug")
+	var existing: Dictionary = _indoor_furniture_at("player", gx, gy, not is_rug)
+	if not existing.is_empty():
+		return false
+	if not is_rug:
+		var p_cell: Vector2i = world_to_grid(player_pos)
+		if p_cell == Vector2i(gx, gy):
+			return false
+	return true
+
+func _store_front_indoor_furniture() -> void:
+	if not in_interior or current_room_id != "player":
+		_show_toast("只有自己的小屋可以收纳或装修家具哦")
+		return
+	var f_cell: Vector2i = indoor_preview_cell if (indoor_edit_mode and indoor_preview_cell.x >= 0) else get_front_cell()
+	var furn_list: Array = indoor_rooms["player"]["furniture"]
+	for idx in range(furn_list.size() - 1, -1, -1):
+		var f: Dictionary = furn_list[idx]
+		if int(f.get("x", -1)) == f_cell.x and int(f.get("y", -1)) == f_cell.y:
+			var ftype: String = str(f.get("type", ""))
+			var meta: Dictionary = INDOOR_FURNITURE_META.get(ftype, {})
+			var item_id: String = str(meta.get("item_id", "chair_item"))
+			furn_list.remove_at(idx)
+			_add_item(item_id, 1)
+			_spawn_burst_effect(Vector2(f_cell) * TILE_SIZE + Vector2(8, 8), PAL_CREAM)
+			_show_toast("已将【%s】收纳回背包！" % str(meta.get("name", "家具")))
+			_refresh_nearby_interaction()
+			queue_redraw()
+			return
+	_show_toast("请面朝或点选一件室内家具再点击【收纳家具】")
+
+func _on_indoor_use_tool_pressed() -> void:
+	if current_room_id != "player":
+		_show_toast("在居民家里做客时请爱护主人的家具哦~")
+		return
+	var item_id: String = hotbar[selected_hotbar_index]
+	var f_cell: Vector2i = indoor_preview_cell if (indoor_edit_mode and indoor_preview_cell.x >= 0) else get_front_cell()
+	indoor_preview_cell = f_cell
+
+	# 用铁铲或斧头在自己屋里可直接收纳前方家具
+	if item_id in ["shovel", "axe"]:
+		_store_front_indoor_furniture()
+		return
+
+	if item_id == "" or not ITEM_DB.has(item_id):
+		_show_toast("请在底部快捷栏或背包中选择一件家具再放置")
+		return
+	var info: Dictionary = ITEM_DB[item_id]
+	var indoor_type: String = str(info.get("indoor_type", ""))
+	if indoor_type == "":
+		if item_id == "potted_plant":
+			indoor_type = "potted_plant"
+		elif item_id == "lamp_item":
+			indoor_type = "lamp"
+		elif item_id == "bench_item":
+			indoor_type = "sofa"
+	if indoor_type == "":
+		_show_toast("【%s】适合在户外使用，室内请选择家具或盆栽布置" % str(info["name"]))
+		return
+	if int(inventory.get(item_id, 0)) <= 0:
+		_show_toast("背包中该家具数量不足")
+		return
+	if is_indoor_door_clearance(f_cell.x, f_cell.y):
+		_show_toast("这里靠近房门出口，家具不能堵门哦！")
+		queue_redraw()
+		return
+	if not _can_place_indoor_furniture_at(f_cell.x, f_cell.y, indoor_type):
+		_show_toast("目标位置已有家具或墙壁，请换一个空格放置")
+		queue_redraw()
+		return
+
+	indoor_rooms["player"]["furniture"].append({
+		"x": f_cell.x,
+		"y": f_cell.y,
+		"type": indoor_type
+	})
+	_consume_item(item_id, 1)
+	_spawn_burst_effect(Vector2(f_cell) * TILE_SIZE + Vector2(8, 8), PAL_PINK)
+	_show_toast("已在室内放置【%s】！" % str(info["name"]))
+	_refresh_hotbar_ui()
+	_refresh_nearby_interaction()
+	queue_redraw()
+
+func _handle_indoor_edit_tap(screen_pos: Vector2) -> void:
+	var world_pt: Vector2 = get_canvas_transform().affine_inverse() * screen_pos
+	var cell: Vector2i = world_to_grid(world_pt)
+	if not is_valid_cell(cell.x, cell.y):
+		return
+	indoor_preview_cell = cell
+	# 如果正在移动某件家具：点击合法空格即放下
+	if not indoor_moving_item.is_empty():
+		var mtype: String = str(indoor_moving_item.get("type", "chair"))
+		if is_indoor_door_clearance(cell.x, cell.y):
+			_show_toast("不能把家具放在房门通道上堵门哦！")
+			queue_redraw()
+			return
+		if _can_place_indoor_furniture_at(cell.x, cell.y, mtype):
+			indoor_moving_item["x"] = cell.x
+			indoor_moving_item["y"] = cell.y
+			indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+			var nm: String = str(INDOOR_FURNITURE_META.get(mtype, {}).get("name", "家具"))
+			indoor_moving_item = {}
+			_spawn_burst_effect(Vector2(cell) * TILE_SIZE + Vector2(8, 8), PAL_GRASS)
+			_show_toast("已将【%s】移动到新位置！" % nm)
+		else:
+			_show_toast("该格已有物体或为墙体，请点击绿色预览格放置")
+		queue_redraw()
+		return
+
+	# 如果点击了已有的家具：拿起它准备移动
+	var furn_list: Array = indoor_rooms["player"]["furniture"]
+	for idx in range(furn_list.size() - 1, -1, -1):
+		var f: Dictionary = furn_list[idx]
+		if int(f.get("x", -1)) == cell.x and int(f.get("y", -1)) == cell.y:
+			indoor_moving_item = f.duplicate(true)
+			furn_list.remove_at(idx)
+			var nm2: String = str(INDOOR_FURNITURE_META.get(str(f.get("type", "")), {}).get("name", "家具"))
+			_show_toast("已拿起【%s】：点击室内空地即可移动，或点「取消」放回原处" % nm2)
+			queue_redraw()
+			return
+
+	# 如果点击了空地：尝试放置当前快捷栏选中的家具
+	_on_indoor_use_tool_pressed()
 
 # ==============================================================================
 # 种植系统（阶段6）：翻土 -> 播种 -> 浇水 -> 成熟 -> 收获
@@ -2571,7 +3281,7 @@ func _open_library() -> void:
 		{"text": "读《潮汐与鱼群》 +1 知识", "cb": func(): _player_read(1)},
 		{"text": "读《小动物的心事》 +1 知识", "cb": func(): _player_read(2)},
 		{"text": "翻翻鱼类图鉴", "cb": func(): _open_fish_codex()},
-		{"text": "离开", "cb": func(): pass}
+		{"text": "关闭", "cb": func(): pass}
 	]
 	_open_action_menu("小岛图书馆", "island_map", entries, body)
 
@@ -2589,7 +3299,7 @@ func _open_canteen() -> void:
 	var entries: Array = [
 		{"text": "海藻饭团 -30 铃钱（移速+20%，90秒）", "cb": func(): _player_eat(30, 90.0)},
 		{"text": "暖胃热汤 -15 铃钱（移速+20%，45秒）", "cb": func(): _player_eat(15, 45.0)},
-		{"text": "离开", "cb": func(): pass}
+		{"text": "关闭", "cb": func(): pass}
 	]
 	_open_action_menu("海岛食堂", "shop_ui", entries, body)
 
@@ -2606,7 +3316,7 @@ func _open_sports() -> void:
 	var entries: Array = [
 		{"text": "跑两圈（移速+20%，60秒）", "cb": func(): _player_exercise()},
 		{"text": "看看大家的相处", "cb": func(): _open_relations()},
-		{"text": "离开", "cb": func(): pass}
+		{"text": "关闭", "cb": func(): pass}
 	]
 	_open_action_menu("海岛运动场", "use_tool_ui", entries, "平整的草场，居民们常来这里活动。")
 
@@ -2614,18 +3324,32 @@ func _player_exercise() -> void:
 	speed_buff_timer = maxf(speed_buff_timer, 60.0)
 	_show_toast("跑了两圈，身体热起来了（移速+20%，60秒）")
 
-func _open_furniture_shop() -> void:
+func _open_furniture_shop(page: int = 0) -> void:
+	var all_ids: Array = [
+		"bed_item", "sofa_item", "table_item", "chair_item",
+		"bookshelf_item", "wardrobe_item", "storage_item", "rug_item",
+		"record_item", "display_item", "potted_plant", "lamp_item",
+		"bench_item", "fence_item", "fountain_item"
+	]
+	var page_size: int = 4
+	var total_pages: int = int(ceil(float(all_ids.size()) / float(page_size)))
+	var cur_page: int = clampi(page, 0, total_pages - 1)
+	var start_i: int = cur_page * page_size
+	var end_i: int = mini(start_i + page_size, all_ids.size())
 	var entries: Array = []
-	for id in ["bench_item", "lamp_item", "potted_plant", "fence_item", "fountain_item"]:
+	for idx in range(start_i, end_i):
+		var id: String = str(all_ids[idx])
 		if not ITEM_DB.has(id):
 			continue
 		var info: Dictionary = ITEM_DB[id]
 		var price: int = int(info.get("price", 100))
 		var iid := str(id)
 		var nm := str(info["name"])
-		entries.append({"text": "%s - %d 铃钱" % [nm, price], "cb": func(): _buy_item(iid, 1)})
-	entries.append({"text": "离开", "cb": func(): pass})
-	_open_action_menu("海岛家具店", "shop_ui", entries, "当前铃钱：%d" % coins)
+		entries.append({"text": "购买【%s】 - %d 铃钱" % [nm, price], "cb": func(): _buy_item(iid, 1)})
+	var next_p: int = (cur_page + 1) % total_pages
+	entries.append({"text": "下一页家具 (%d/%d)" % [cur_page + 1, total_pages], "cb": func(): _open_furniture_shop(next_p)})
+	entries.append({"text": "关闭", "cb": func(): pass})
+	_open_action_menu("海岛家具店（室内外通用家具）", "shop_ui", entries, "当前铃钱：%d · 购买后可在小屋内或庭院自由摆放" % coins)
 
 func _open_seed_shop() -> void:
 	var entries: Array = []
@@ -2635,7 +3359,7 @@ func _open_seed_shop() -> void:
 		var iid := str(id)
 		var nm := str(ITEM_DB[id]["name"])
 		entries.append({"text": nm, "cb": func(): _open_seed_quantity(iid)})
-	entries.append({"text": "离开", "cb": func(): pass})
+	entries.append({"text": "关闭", "cb": func(): pass})
 	_open_action_menu("海岛种子店", "flower", entries, "当前铃钱：%d\n买到的种子可以播在翻好的土地上" % coins)
 
 func _open_seed_quantity(id: String) -> void:
@@ -2718,7 +3442,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					_cancel_auto_path()
 					_update_joystick(touch.position)
 				elif joy_touch_index == -1:
-					_handle_ground_click(touch.position)
+					if in_interior and touch.position.y < 86.0:
+						return
+					if in_interior and indoor_edit_mode and touch.position.x < vp_size.x - 106.0 and touch.position.y < vp_size.y - 70.0:
+						_handle_indoor_edit_tap(touch.position)
+					else:
+						_handle_ground_click(touch.position)
 			else:
 				if touch.index == joy_touch_index:
 					joy_touch_index = -1
@@ -2932,7 +3661,9 @@ func find_path(start_cell: Vector2i, goal_cell: Vector2i) -> Array[Vector2i]:
 	if start_cell == goal_cell:
 		return result
 
-	var total: int = GRID_WIDTH * GRID_HEIGHT
+	var gw: int = ROOM_W if in_interior else GRID_WIDTH
+	var gh: int = ROOM_H if in_interior else GRID_HEIGHT
+	var total: int = gw * gh
 	var g_cost := PackedFloat32Array()
 	g_cost.resize(total)
 	g_cost.fill(INF)
@@ -2942,8 +3673,8 @@ func find_path(start_cell: Vector2i, goal_cell: Vector2i) -> Array[Vector2i]:
 	var closed := PackedByteArray()
 	closed.resize(total)
 
-	var start_idx: int = start_cell.y * GRID_WIDTH + start_cell.x
-	var goal_idx: int = goal_cell.y * GRID_WIDTH + goal_cell.x
+	var start_idx: int = start_cell.y * gw + start_cell.x
+	var goal_idx: int = goal_cell.y * gw + goal_cell.x
 	g_cost[start_idx] = 0.0
 
 	var heap: Array = []
@@ -2960,14 +3691,14 @@ func find_path(start_cell: Vector2i, goal_cell: Vector2i) -> Array[Vector2i]:
 			found = true
 			break
 
-		var cx: int = ci % GRID_WIDTH
-		var cy: int = ci / GRID_WIDTH
+		var cx: int = ci % gw
+		var cy: int = ci / gw
 		for d in PATH_DIRS:
 			var nx: int = cx + d.x
 			var ny: int = cy + d.y
 			if not is_valid_cell(nx, ny):
 				continue
-			var ni: int = ny * GRID_WIDTH + nx
+			var ni: int = ny * gw + nx
 			if closed[ni] == 1:
 				continue
 			if not can_step_between(Vector2i(cx, cy), Vector2i(nx, ny)):
@@ -2990,7 +3721,7 @@ func find_path(start_cell: Vector2i, goal_cell: Vector2i) -> Array[Vector2i]:
 	var rev: Array[Vector2i] = []
 	var walk: int = goal_idx
 	while walk != -1 and walk != start_idx:
-		rev.append(Vector2i(walk % GRID_WIDTH, walk / GRID_WIDTH))
+		rev.append(Vector2i(walk % gw, walk / gw))
 		walk = came[walk]
 	rev.reverse()
 	for c in rev:
@@ -3034,6 +3765,9 @@ func _visible_cell_rect(margin: int = 2) -> Rect2i:
 	return Rect2i(x0, y0, maxi(0, x1 - x0), maxi(0, y1 - y0))
 
 func _draw() -> void:
+	if in_interior:
+		_draw_indoor_room()
+		return
 	var vis: Rect2i = _visible_cell_rect(2)
 	var view_world: Rect2 = _visible_world_rect()
 
@@ -3407,6 +4141,28 @@ func _draw_storybook_object_base(p: Vector2, o_type: int) -> void:
 			draw_rect(Rect2(p.x - 3, p.y - 3, 22, 20), PAL_OUTLINE, true)
 			draw_rect(Rect2(p.x - 2, p.y - 2, 20, 18), PAL_SAND, true)
 			draw_rect(Rect2(p.x, p.y, 16, 14), PAL_WOOD, false, 2.0)
+		ObjectType.BOOKSHELF:
+			draw_texture_rect(_get_icon_tex("bookshelf"), Rect2(p.x - 2, p.y - 6, 20, 20), false)
+		ObjectType.RECORD_PLAYER:
+			draw_texture_rect(_get_icon_tex("record_player"), Rect2(p.x - 2, p.y - 4, 20, 20), false)
+		ObjectType.SHELL_SHELF:
+			draw_texture_rect(_get_icon_tex("shell_rack"), Rect2(p.x - 2, p.y - 6, 20, 20), false)
+		ObjectType.DINING_TABLE:
+			draw_texture_rect(_get_icon_tex("table"), Rect2(p.x - 2, p.y - 4, 20, 20), false)
+		ObjectType.BED:
+			draw_texture_rect(_get_icon_tex("bed"), Rect2(p.x - 2, p.y - 4, 20, 20), false)
+		ObjectType.SOFA:
+			draw_texture_rect(_get_icon_tex("sofa"), Rect2(p.x - 2, p.y - 4, 20, 20), false)
+		ObjectType.CHAIR:
+			draw_texture_rect(_get_icon_tex("chair"), Rect2(p.x - 1, p.y - 3, 18, 18), false)
+		ObjectType.WARDROBE:
+			draw_texture_rect(_get_icon_tex("wardrobe"), Rect2(p.x - 2, p.y - 6, 20, 20), false)
+		ObjectType.STORAGE_BOX:
+			draw_texture_rect(_get_icon_tex("storage_box"), Rect2(p.x - 1, p.y - 3, 18, 18), false)
+		ObjectType.RUG:
+			draw_texture_rect(_get_icon_tex("rug"), Rect2(p.x - 2, p.y - 2, 20, 20), false)
+		ObjectType.DISPLAY_CASE:
+			draw_texture_rect(_get_icon_tex("display_case"), Rect2(p.x - 2, p.y - 6, 20, 20), false)
 
 func _draw_tree_canopy_layer(p: Vector2, o_type: int) -> void:
 	match o_type:
@@ -3432,61 +4188,159 @@ func _draw_tree_canopy_layer(p: Vector2, o_type: int) -> void:
 			draw_rect(Rect2(p.x + 5, p.y + 2, 3, 3), PAL_WOOD, true)
 			draw_rect(Rect2(p.x + 9, p.y + 2, 3, 3), PAL_WOOD, true)
 
-func _draw_storybook_animal(a: Dictionary) -> void:
-	var p: Vector2 = a["pos"]
-	var body_col: Color = a["body_col"]
-	var ear_col: Color = a["ear_col"]
-	var shirt_col: Color = a["shirt_col"]
-	var id_str: String = str(a["id"])
-	var step_bob: float = abs(sin(env_anim_time * 3.5 + p.x)) * 1.0
+func _facing_to_row(f: Vector2) -> int:
+	# 0: 下 (DOWN), 1: 左 (LEFT), 2: 右 (RIGHT), 3: 上 (UP)
+	if absf(f.x) > absf(f.y):
+		return 1 if f.x < 0.0 else 2
+	return 3 if f.y < -0.05 else 0
 
-	draw_rect(Rect2(p.x - 6, p.y + 2, 12, 3), Color(0, 0, 0, 0.22), true)
-	draw_rect(Rect2(p.x - 5, p.y - 14 - step_bob, 10, 17), PAL_OUTLINE, true)
-	draw_rect(Rect2(p.x - 4, p.y - 5 - step_bob, 8, 7), shirt_col, true)
-	draw_rect(Rect2(p.x - 4, p.y - 13 - step_bob, 8, 8), body_col, true)
+func _draw_storybook_animal(a: Dictionary, override_pos: Vector2 = Vector2(-9999, -9999)) -> void:
+	var p: Vector2 = a["pos"] if override_pos.x < -1000.0 else override_pos
+	var id_str: String = str(a.get("id", "bear"))
+	var facing: Vector2 = a.get("facing", Vector2.DOWN)
+	var anim_t: float = float(a.get("anim_t", 0.0))
+	var is_moving: bool = not (a.get("path", []) as Array).is_empty() and override_pos.x < -1000.0
+	var row: int = _facing_to_row(facing)
+	var col: int = (int(floor(anim_t)) % 4) if is_moving else 0
 
-	if id_str == "rabbit":
-		draw_rect(Rect2(p.x - 4, p.y - 19 - step_bob, 3, 6), PAL_OUTLINE, true)
-		draw_rect(Rect2(p.x + 1, p.y - 19 - step_bob, 3, 6), PAL_OUTLINE, true)
-		draw_rect(Rect2(p.x - 3, p.y - 18 - step_bob, 2, 5), ear_col, true)
-		draw_rect(Rect2(p.x + 1, p.y - 18 - step_bob, 2, 5), ear_col, true)
-	elif id_str in ["cat", "fox"]:
-		draw_rect(Rect2(p.x - 5, p.y - 16 - step_bob, 3, 3), ear_col, true)
-		draw_rect(Rect2(p.x + 2, p.y - 16 - step_bob, 3, 3), ear_col, true)
-	elif id_str == "bear":
-		draw_rect(Rect2(p.x - 5, p.y - 15 - step_bob, 3, 3), ear_col, true)
-		draw_rect(Rect2(p.x + 2, p.y - 15 - step_bob, 3, 3), ear_col, true)
-	elif id_str == "penguin":
-		draw_rect(Rect2(p.x - 2, p.y - 11 - step_bob, 4, 4), PAL_CREAM, true)
-		draw_rect(Rect2(p.x - 1, p.y - 9 - step_bob, 2, 2), PAL_CORAL, true)
+	draw_rect(Rect2(p.x - 6, p.y + 1, 12, 3), Color(0, 0, 0, 0.22), true)
+	var walk_tex: Texture2D = _get_walk_tex(id_str)
+	if walk_tex != null:
+		draw_texture_rect_region(
+			walk_tex,
+			Rect2(round(p.x - 10.0), round(p.y - 19.0), 20.0, 20.0),
+			Rect2(float(col * 24), float(row * 24), 24.0, 24.0)
+		)
+		return
 
-	draw_rect(Rect2(p.x - 3, p.y - 10 - step_bob, 1.5, 2), PAL_OUTLINE, true)
-	draw_rect(Rect2(p.x + 1.5, p.y - 10 - step_bob, 1.5, 2), PAL_OUTLINE, true)
-	draw_rect(Rect2(p.x - 4, p.y - 8 - step_bob, 1.5, 1), PAL_PINK, true)
-	draw_rect(Rect2(p.x + 2.5, p.y - 8 - step_bob, 1.5, 1), PAL_PINK, true)
+	# 保底像素绘制
+	var body_col: Color = a.get("body_col", PAL_EARTH)
+	var shirt_col: Color = a.get("shirt_col", PAL_SAND)
+	draw_rect(Rect2(p.x - 5, p.y - 14, 10, 17), PAL_OUTLINE, true)
+	draw_rect(Rect2(p.x - 4, p.y - 5, 8, 7), shirt_col, true)
+	draw_rect(Rect2(p.x - 4, p.y - 13, 8, 8), body_col, true)
 
 func _draw_storybook_player() -> void:
-	var bob: float = abs(sin(walk_anim_time)) * 1.5
 	var px: float = player_pos.x
 	var py: float = player_pos.y
+	var row: int = _facing_to_row(player_facing)
+	var col: int = (int(floor(walk_anim_time * 0.8)) % 4) if walk_anim_time > 0.01 else 0
 
-	draw_rect(Rect2(px - 6, py + 2, 12, 3), Color(0, 0, 0, 0.26), true)
-	draw_rect(Rect2(px - 5, py - 14 - bob, 10, 17), PAL_OUTLINE, true)
-	draw_rect(Rect2(px - 4, py - 5 - bob, 8, 7), PAL_OCEAN_BLUE, true)
-	draw_rect(Rect2(px - 3, py - 6 - bob, 6, 2), PAL_CORAL, true)
-	draw_rect(Rect2(px - 4, py - 13 - bob, 8, 7), PAL_CREAM, true)
-	draw_rect(Rect2(px - 7, py - 15 - bob, 14, 3), PAL_OUTLINE, true)
-	draw_rect(Rect2(px - 6, py - 15 - bob, 12, 2), PAL_SAND, true)
-	draw_rect(Rect2(px - 4, py - 18 - bob, 8, 3), PAL_CORAL, true)
-
-	var eye_x: float = clampf(player_facing.x * 1.5, -1.5, 1.5)
-	draw_rect(Rect2(px - 2.5 + eye_x, py - 10 - bob, 1.5, 2), PAL_OUTLINE, true)
-	draw_rect(Rect2(px + 1.0 + eye_x, py - 10 - bob, 1.5, 2), PAL_OUTLINE, true)
+	draw_rect(Rect2(px - 6, py + 1, 12, 3), Color(0, 0, 0, 0.26), true)
+	var p_tex: Texture2D = _get_walk_tex("player")
+	if p_tex != null:
+		draw_texture_rect_region(
+			p_tex,
+			Rect2(round(px - 10.0), round(py - 19.0), 20.0, 20.0),
+			Rect2(float(col * 24), float(row * 24), 24.0, 24.0)
+		)
+	else:
+		draw_rect(Rect2(px - 5, py - 14, 10, 17), PAL_OUTLINE, true)
+		draw_rect(Rect2(px - 4, py - 5, 8, 7), PAL_OCEAN_BLUE, true)
+		draw_rect(Rect2(px - 4, py - 13, 8, 7), PAL_CREAM, true)
 
 	if tool_swing_timer > 0.0:
 		var swing_pos: Vector2 = player_pos + player_facing.normalized() * 11.0
 		draw_circle(swing_pos, 5.0, PAL_CREAM)
 		draw_circle(swing_pos, 3.0, PAL_CORAL)
+
+func _draw_indoor_room() -> void:
+	var view_world: Rect2 = _visible_world_rect()
+	# 室内暖棕背景衬底
+	draw_rect(view_world.grow(64.0), Color("#261F1B"), true)
+
+	var room: Dictionary = indoor_rooms.get(current_room_id, indoor_rooms.get("player", {}))
+	var floor_col: Color = room.get("floor_col", PAL_CREAM)
+	var floor_alt: Color = room.get("floor_alt", PAL_CREAM_DARK)
+	var wall_col: Color = room.get("wall_col", PAL_SAND)
+	var trim_col: Color = room.get("trim_col", PAL_WOOD)
+
+	# 外框阴影与木质外框
+	draw_rect(Rect2(-4, -4, ROOM_W * TILE_SIZE + 8, ROOM_H * TILE_SIZE + 10), PAL_OUTLINE, true)
+	draw_rect(Rect2(-2, -2, ROOM_W * TILE_SIZE + 4, ROOM_H * TILE_SIZE + 6), trim_col, true)
+
+	# 逐格绘制墙体与木地板
+	for x in range(ROOM_W):
+		for y in range(ROOM_H):
+			var r := Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+			var is_door: bool = (y == ROOM_H - 1 and x in [5, 6])
+			var is_wall: bool = (x == 0 or x == ROOM_W - 1 or y == 0 or y == ROOM_H - 1) and not is_door
+			if is_wall:
+				draw_rect(r, wall_col if y == 0 else trim_col, true)
+				if y == 0:
+					draw_rect(Rect2(r.position.x, r.position.y + 12, TILE_SIZE, 4), trim_col, true)
+					# 北墙窗户与日光/夜色
+					if x in [4, 7]:
+						var win_col: Color = Color("#466289") if (clock_hour >= 19 or clock_hour < 6) else PAL_SKY_BLUE
+						draw_rect(Rect2(r.position.x + 2, r.position.y + 2, 12, 9), PAL_OUTLINE, true)
+						draw_rect(Rect2(r.position.x + 3, r.position.y + 3, 10, 7), win_col, true)
+						draw_rect(Rect2(r.position.x + 7, r.position.y + 3, 1, 7), PAL_CREAM, true)
+						draw_rect(Rect2(r.position.x + 3, r.position.y + 6, 10, 1), PAL_CREAM, true)
+			else:
+				var c_fl: Color = floor_col if ((x + y) % 2 == 0) else floor_alt
+				draw_rect(r, c_fl, true)
+				draw_rect(Rect2(r.position.x, r.position.y + 15, TILE_SIZE, 1), c_fl.darkened(0.06), true)
+				if is_door:
+					draw_rect(Rect2(r.position.x + 1, r.position.y + 2, TILE_SIZE - 2, TILE_SIZE - 3), PAL_CORAL, true)
+					draw_rect(Rect2(r.position.x + 2, r.position.y + 4, TILE_SIZE - 4, TILE_SIZE - 7), PAL_SAND, true)
+
+	# 玩家房屋绘制四大功能区柔和地面边线标识（休息区、储物区、工作区、自由装修区）
+	if current_room_id == "player":
+		draw_rect(Rect2(1 * TILE_SIZE + 1, 1 * TILE_SIZE + 1, 4 * TILE_SIZE - 2, 3 * TILE_SIZE - 2), Color(0.45, 0.78, 0.93, 0.14), false, 1.0)
+		draw_rect(Rect2(7 * TILE_SIZE + 1, 1 * TILE_SIZE + 1, 4 * TILE_SIZE - 2, 2 * TILE_SIZE - 2), Color(0.95, 0.83, 0.38, 0.16), false, 1.0)
+		draw_rect(Rect2(1 * TILE_SIZE + 1, 5 * TILE_SIZE + 1, 3 * TILE_SIZE - 2, 3 * TILE_SIZE - 2), Color(0.51, 0.79, 0.43, 0.16), false, 1.0)
+		if indoor_edit_mode:
+			for gx in range(1, ROOM_W - 1):
+				for gy in range(1, ROOM_H - 1):
+					var gr := Rect2(gx * TILE_SIZE, gy * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+					draw_rect(gr, Color(1, 1, 1, 0.16), false, 1.0)
+
+	# 1. 先绘制地面地毯层 (walkable == true)
+	var furn_list: Array = room.get("furniture", [])
+	for f in furn_list:
+		var ftype: String = str(f.get("type", ""))
+		if ftype == "rug":
+			var fp := Vector2(int(f["x"]) * TILE_SIZE, int(f["y"]) * TILE_SIZE)
+			draw_texture_rect(_get_icon_tex("rug"), Rect2(fp.x - 1, fp.y - 1, 18, 18), false)
+
+	# 2. Y-Sort 逐行绘制室内立体家具、房间主人与玩家角色
+	var p_row: int = clampi(int(floor(player_pos.y / TILE_SIZE)), 0, ROOM_H - 1)
+	var host_idx: int = _indoor_host_resident_idx()
+	var host_pos: Vector2 = _indoor_host_pos()
+	var host_row: int = clampi(int(floor(host_pos.y / TILE_SIZE)), 0, ROOM_H - 1)
+
+	for y in range(ROOM_H):
+		for f in furn_list:
+			if int(f.get("y", -1)) != y:
+				continue
+			var ftype2: String = str(f.get("type", ""))
+			if ftype2 == "rug":
+				continue
+			var fx: int = int(f.get("x", 0))
+			var fp2 := Vector2(fx * TILE_SIZE, y * TILE_SIZE)
+			var icon_k: String = str(INDOOR_FURNITURE_META.get(ftype2, {}).get("icon", "chair"))
+			draw_rect(Rect2(fp2.x + 1, fp2.y + 13, 14, 3), Color(0, 0, 0, 0.18), true)
+			draw_texture_rect(_get_icon_tex(icon_k), Rect2(fp2.x - 2, fp2.y - 4, 20, 20), false)
+
+		if host_idx >= 0 and host_row == y:
+			_draw_storybook_animal(animals[host_idx], host_pos)
+
+		if p_row == y:
+			_draw_storybook_player()
+
+	# 3. 漫步正面高亮框或室内装修红绿预览框
+	var fc: Vector2i = indoor_preview_cell if (indoor_edit_mode and indoor_preview_cell.x >= 0) else get_front_cell()
+	if is_valid_cell(fc.x, fc.y):
+		if indoor_edit_mode and current_room_id == "player":
+			var test_type: String = str(indoor_moving_item.get("type", "chair")) if not indoor_moving_item.is_empty() else "chair"
+			var can_put: bool = _can_place_indoor_furniture_at(fc.x, fc.y, test_type)
+			var p_col: Color = Color(0.25, 0.92, 0.40, 0.42) if can_put else Color(0.95, 0.30, 0.30, 0.48)
+			draw_rect(Rect2(fc.x * TILE_SIZE, fc.y * TILE_SIZE, TILE_SIZE, TILE_SIZE), p_col, true)
+			draw_rect(Rect2(fc.x * TILE_SIZE, fc.y * TILE_SIZE, TILE_SIZE, TILE_SIZE), PAL_CREAM, false, 1.4)
+		else:
+			draw_rect(Rect2(fc.x * TILE_SIZE + 1, fc.y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2), Color(1.0, 0.95, 0.80, 0.58), false, 1.2)
+
+	_draw_environment_particles()
 
 func _draw_environment_particles() -> void:
 	var h: int = int(Time.get_datetime_dict_from_system().get("hour", 12))
@@ -3636,7 +4490,9 @@ func _build_all_mobile_ui() -> void:
 	btn_new_game.pressed.connect(func():
 		if FileAccess.file_exists(SAVE_PATH):
 			_ask_confirm("开启新游戏将覆盖当前本地存档，确定要重新生成初始小岛吗？", func():
+				in_interior = false
 				_init_default_island()
+				_init_indoor_rooms()
 				_init_default_inventory()
 				_save_game()
 				_refresh_hotbar_ui()
@@ -3721,6 +4577,9 @@ func _build_all_mobile_ui() -> void:
 	mode_toggle_btn = mode_res[0]
 	mode_toggle_label = mode_res[1]
 	mode_toggle_btn.pressed.connect(func():
+		if in_interior:
+			_toggle_indoor_edit_mode()
+			return
 		if game_state == GameState.EXPLORE_MODE:
 			_switch_game_state(GameState.BUILD_MODE)
 			_show_toast("已进入【岛建模式】：点击底部图标切换工具，右侧可改画笔/撤销")
@@ -4057,6 +4916,23 @@ func _on_cancel_button_pressed() -> void:
 	if active_modal != null:
 		_close_active_modal()
 		return
+	if in_interior:
+		if not indoor_moving_item.is_empty() and current_room_id == "player":
+			indoor_rooms["player"]["furniture"].append(indoor_moving_item)
+			indoor_moving_item = {}
+			_show_toast("已取消移动，家具已放回原位置")
+			queue_redraw()
+			return
+		if indoor_edit_mode:
+			indoor_edit_mode = false
+			_update_indoor_hud()
+			_show_toast("已退出室内装修模式")
+			queue_redraw()
+			return
+		_reset_touch_states()
+		_cancel_auto_path()
+		_show_toast("已取消当前动作（走到底部房门或点「出门返回」可离开房间）")
+		return
 	if game_state == GameState.BUILD_MODE:
 		if moving_picked_obj != ObjectType.NONE and is_valid_cell(moving_from_cell.x, moving_from_cell.y):
 			object_grid[moving_from_cell.x][moving_from_cell.y] = moving_picked_obj
@@ -4251,7 +5127,7 @@ func _build_all_modals() -> void:
 
 	var legend_lbl := Label.new()
 	legend_lbl.position = Vector2(392, 52)
-	legend_lbl.text = "【小岛区域图例】\n• 红点：你的当前位置\n• 黄点：5位动物居民\n• 红顶：温馨岛民小屋\n• 蓝顶：河畔杂货铺\n• 白圈：中央喷泉广场\n• 棕色：木桥与观海码头"
+	legend_lbl.text = "【小岛区域图例】\n• 红点：你的当前位置\n• 黄点：8位动物居民\n• 红顶：温馨岛民小屋\n• 蓝顶：河畔杂货铺\n• 白圈：中央喷泉广场\n• 棕色：木桥与观海码头"
 	legend_lbl.add_theme_font_size_override("font_size", 12)
 	legend_lbl.add_theme_color_override("font_color", PAL_OUTLINE)
 	map_panel.add_child(legend_lbl)
@@ -4412,22 +5288,56 @@ func _build_all_modals() -> void:
 	)
 	shop_panel.add_child(sell_btn)
 
-	# 6. 对话框弹窗
-	var dlg_res: Array = _create_modal_base("岛民交谈", "mail_ui", Vector2(450, 200))
+	# 6. 对话框弹窗（支持 8 位动物居民 5 种表情立绘展示与切换）
+	var dlg_res: Array = _create_modal_base("岛民交谈", "mail_ui", Vector2(500, 236))
 	dialog_modal = dlg_res[0]
 	var dlg_panel: Panel = dlg_res[1]
 	dialog_title_label = dlg_res[2]
 
+	dialog_portrait_box = Panel.new()
+	dialog_portrait_box.position = Vector2(18, 48)
+	dialog_portrait_box.size = Vector2(92, 114)
+	dialog_portrait_box.add_theme_stylebox_override("panel", _make_storybook_panel_style(PAL_CREAM_DARK, PAL_OUTLINE, 8))
+	dlg_panel.add_child(dialog_portrait_box)
+
+	dialog_portrait_rect = TextureRect.new()
+	dialog_portrait_rect.position = Vector2(8, 6)
+	dialog_portrait_rect.size = Vector2(76, 76)
+	dialog_portrait_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	dialog_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	dialog_portrait_box.add_child(dialog_portrait_rect)
+
+	dialog_expr_label = Label.new()
+	dialog_expr_label.position = Vector2(4, 86)
+	dialog_expr_label.size = Vector2(84, 22)
+	dialog_expr_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dialog_expr_label.add_theme_font_size_override("font_size", 11)
+	dialog_expr_label.add_theme_color_override("font_color", PAL_WOOD)
+	dialog_portrait_box.add_child(dialog_expr_label)
+
 	dialog_body_label = Label.new()
-	dialog_body_label.position = Vector2(22, 54)
-	dialog_body_label.size = Vector2(406, 86)
+	dialog_body_label.position = Vector2(122, 50)
+	dialog_body_label.size = Vector2(358, 108)
 	dialog_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	dialog_body_label.add_theme_font_size_override("font_size", 14)
+	dialog_body_label.add_theme_font_size_override("font_size", 13)
 	dialog_body_label.add_theme_color_override("font_color", PAL_OUTLINE)
 	dlg_panel.add_child(dialog_body_label)
 
-	var dlg_ok: Button = _make_icon_label_btn("confirm_ui", "真温暖，我知道啦~", Vector2(190, 40), PAL_GRASS, false, 20)[0]
-	dlg_ok.position = Vector2(130, 144)
+	dialog_expr_bar = HBoxContainer.new()
+	dialog_expr_bar.position = Vector2(18, 174)
+	dialog_expr_bar.add_theme_constant_override("separation", 4)
+	dlg_panel.add_child(dialog_expr_bar)
+	for ex in PORTRAIT_EXPRS:
+		var ex_str: String = str(ex)
+		var ex_btn := _make_touch_btn(str(EXPR_CN_NAMES.get(ex_str, ex_str)), Vector2(54, 34), PAL_SAND, PAL_OUTLINE)
+		ex_btn.pressed.connect(func():
+			if dialog_char_id != "":
+				_set_dialog_portrait(dialog_char_id, ex_str)
+		)
+		dialog_expr_bar.add_child(ex_btn)
+
+	var dlg_ok: Button = _make_icon_label_btn("confirm_ui", "确定", Vector2(140, 38), PAL_GRASS, false, 20)[0]
+	dlg_ok.position = Vector2(340, 172)
 	dlg_ok.pressed.connect(_close_active_modal)
 	dlg_panel.add_child(dlg_ok)
 
@@ -4453,7 +5363,7 @@ func _build_all_modals() -> void:
 	)
 	cfm_panel.add_child(cfm_yes)
 
-	var cfm_no: Button = _make_icon_label_btn("cancel_ui", "取消返回", Vector2(140, 40), PAL_SAND, false, 20)[0]
+	var cfm_no: Button = _make_icon_label_btn("cancel_ui", "取消", Vector2(140, 40), PAL_SAND, false, 20)[0]
 	cfm_no.position = Vector2(212, 132)
 	cfm_no.pressed.connect(_close_active_modal)
 	cfm_panel.add_child(cfm_no)
@@ -4497,9 +5407,44 @@ func _open_map_modal() -> void:
 func _open_shop_modal() -> void:
 	_open_modal(shop_modal)
 
-func _open_dialog_modal(title_str: String, body_str: String) -> void:
+func _select_resident_expression(a: Dictionary, received_gift: bool = false) -> String:
+	if received_gift:
+		return "shy" if int(a.get("affinity", 20)) >= 50 else "happy"
+	var n: Dictionary = a.get("needs", {})
+	if float(n.get("energy", 0.8)) < 0.32 or str(a.get("action", "")) == "rest":
+		return "sleepy"
+	if int(a.get("affinity", 20)) >= 65:
+		return "happy" if (randi() % 2 == 0) else "shy"
+	if float(n.get("fun", 0.6)) > 0.68:
+		return "happy"
+	if float(a.get("personality", {}).get("curiosity", 0.5)) >= 0.80 and randf() < 0.45:
+		return "surprised"
+	return "neutral"
+
+func _set_dialog_portrait(char_id: String, expr: String) -> void:
+	dialog_char_id = char_id
+	dialog_curr_expr = expr if expr in PORTRAIT_EXPRS else "neutral"
+	if dialog_portrait_rect != null:
+		dialog_portrait_rect.texture = _get_portrait_tex(dialog_char_id, dialog_curr_expr)
+	if dialog_expr_label != null:
+		dialog_expr_label.text = "表情·%s" % str(EXPR_CN_NAMES.get(dialog_curr_expr, "普通"))
+
+func _open_dialog_modal(title_str: String, body_str: String, char_id: String = "", expr: String = "neutral") -> void:
 	dialog_title_label.text = title_str
 	dialog_body_label.text = body_str
+	var has_portrait: bool = (char_id != "")
+	if dialog_portrait_box != null:
+		dialog_portrait_box.visible = has_portrait
+	if dialog_expr_bar != null:
+		dialog_expr_bar.visible = has_portrait
+	if has_portrait:
+		_set_dialog_portrait(char_id, expr)
+		dialog_body_label.position = Vector2(122, 50)
+		dialog_body_label.size = Vector2(358, 108)
+	else:
+		dialog_char_id = ""
+		dialog_body_label.position = Vector2(22, 50)
+		dialog_body_label.size = Vector2(456, 112)
 	_open_modal(dialog_modal)
 
 func _ask_confirm(prompt_str: String, on_yes: Callable) -> void:
@@ -4695,13 +5640,14 @@ func _save_game() -> bool:
 		"saved_unix_time": int(Time.get_unix_time_from_system()),
 		"logical_day_key": _get_logical_day_key(),
 		"coins": coins,
-		"player": {"x": snappedf(player_pos.x, 0.1), "y": snappedf(player_pos.y, 0.1)},
+		"player": {"x": snappedf((outdoor_pos if in_interior else player_pos).x, 0.1), "y": snappedf((outdoor_pos if in_interior else player_pos).y, 0.1)},
 		"inventory": inventory,
 		"hotbar": hotbar,
 		"selected_hotbar_index": selected_hotbar_index,
 		"player_knowledge": player_knowledge,
 		"crops": crops,
 		"caught_fish": caught_fish,
+		"indoor_rooms": indoor_rooms,
 		"residents": residents_state,
 		"settings": {
 			"camera_zoom": setting_camera_zoom,
@@ -4853,6 +5799,8 @@ func _load_game() -> void:
 			if typeof(item) != TYPE_DICTIONARY:
 				continue
 			var rid: String = str(item.get("id", ""))
+			if rid == "penguin":
+				rid = "otter"
 			for j in range(animals.size()):
 				if str(animals[j]["id"]) != rid:
 					continue
@@ -4903,13 +5851,28 @@ func _load_game() -> void:
 				# 逐格 clamp，坏档最多表现为局部默认地形，不会数组越界崩溃
 				ground_grid[x][y] = clampi(int(gg[x][y]), 0, GroundType.TILLED_SOIL)
 				elevation_grid[x][y] = clampi(int(eg[x][y]), 0, 2)
-				object_grid[x][y] = clampi(int(og[x][y]), 0, ObjectType.DINING_TABLE)
+				object_grid[x][y] = clampi(int(og[x][y]), 0, ObjectType.DISPLAY_CASE)
+		# 确保 8 位居民的小屋在旧存档升级后同样存在于岛上
+		for vh_id in VILLAGER_HOUSE_CELLS.keys():
+			var vhc: Vector2i = VILLAGER_HOUSE_CELLS[vh_id]
+			if is_valid_cell(vhc.x, vhc.y) and object_grid[vhc.x][vhc.y] == ObjectType.NONE:
+				ground_grid[vhc.x][vhc.y] = GroundType.GRASS
+				elevation_grid[vhc.x][vhc.y] = 1
+				object_grid[vhc.x][vhc.y] = ObjectType.VILLAGER_HOUSE
 
 	var saved_day: String = str(data.get("logical_day_key", ""))
 	if saved_day != "" and _get_logical_day_key() > saved_day:
 		var done: int = _finish_all_constructions()
 		if done > 0:
 			_show_toast("施工完成！%d 座新建筑在清晨落成" % done)
+
+	_init_indoor_rooms()
+	if data.has("indoor_rooms") and typeof(data["indoor_rooms"]) == TYPE_DICTIONARY:
+		var saved_rooms: Dictionary = data["indoor_rooms"]
+		if saved_rooms.has("player") and typeof(saved_rooms["player"]) == TYPE_DICTIONARY:
+			var pr: Dictionary = saved_rooms["player"]
+			if pr.has("furniture") and typeof(pr["furniture"]) == TYPE_ARRAY:
+				indoor_rooms["player"]["furniture"] = pr["furniture"]
 
 	if data.has("player") and typeof(data["player"]) == TYPE_DICTIONARY:
 		var p: Dictionary = data["player"]
